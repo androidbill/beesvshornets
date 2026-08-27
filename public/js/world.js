@@ -7,13 +7,14 @@ import {
   colAt, rowAt, onLawn, MOWER_X, HOUSE_LINE, SCENES, SUN_VALUE, PLANT_FOOD_MAX,
   SKY_SUN_MIN, SKY_SUN_MAX,
 } from './config.js';
-import { PLANTS, makePlant } from './plants.js';
-import { ZOMBIES, makeZombie, front, back } from './zombies.js';
-import { buildWave, waveGap } from './levels.js';
+import { DEFENDERS, makeDefender, INVADERS, makeInvader } from './battle-packs/bees-hornets.js';
+import { buildWave, waveGap } from './battle-packs/bees-hornets-levels.js';
 import { Particles } from './particles.js';
 import { sfx, setIntensity } from './audio.js';
 
 export const STEP = 1 / 60;
+const front = (unit) => unit.x - (unit.def.big ? 46 : unit.def.small ? 18 : 28);
+const back = (unit) => unit.x + (unit.def.big ? 40 : unit.def.small ? 16 : 26);
 
 export class World {
   constructor(level, loadout) {
@@ -25,7 +26,7 @@ export class World {
     this.time = 0;
     this.status = 'intro';        // intro | playing | won | lost
     this.statusT = 3.2;
-    this.sun = level.sun ?? 50;
+    this.sun = level.nectar ?? level.sun ?? 50;
     this.plants = [];
     this.grid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
     this.zombies = [];
@@ -40,7 +41,7 @@ export class World {
 
     this.mowers = Array.from({ length: ROWS }, (_, r) => ({ row: r, x: MOWER_X(), state: 'idle', spin: 0 }));
 
-    this.packets = loadout.map((id) => ({ id, cd: 0, recharge: PLANTS[id].recharge }));
+    this.packets = loadout.map((id) => ({ id, cd: 0, recharge: DEFENDERS[id].recharge }));
     this.selected = -1;
     this.shovel = false;
     this.foodArmed = false;
@@ -135,14 +136,14 @@ export class World {
     const existing = this.plantAt(col, row);
 
     if (this.foodArmed) {
-      if (existing && PLANTS[existing.id].food) {
+      if (existing && DEFENDERS[existing.id].food) {
         this.foodArmed = false;
         this.foodCount--;
         existing.foodT = 1.1;
         sfx('foodUse');
         this.particles.ring(existing.x, existing.y - 50, '#8bff9a', 30, 4, 0.6);
         this.particles.sparkle(existing.x, existing.y - 50, '#c8ffd0', 14);
-        PLANTS[existing.id].food(existing, this);
+        DEFENDERS[existing.id].food(existing, this);
         return true;
       }
       sfx('err');
@@ -163,9 +164,9 @@ export class World {
       const pk = this.packets[this.selected];
       if (!pk) return false;
       if (existing || this.graveAt(col, row)) { sfx('err'); return false; }
-      if (pk.cd > 0 || this.sun < PLANTS[pk.id].cost) { sfx('err'); return false; }
+      if (pk.cd > 0 || this.sun < DEFENDERS[pk.id].cost) { sfx('err'); return false; }
       this.place(pk.id, col, row);
-      this.sun -= PLANTS[pk.id].cost;
+      this.sun -= DEFENDERS[pk.id].cost;
       pk.cd = pk.recharge;
       this.selected = -1;
       return true;
@@ -183,7 +184,7 @@ export class World {
   }
 
   place(id, col, row) {
-    const p = makePlant(id, col, row);
+    const p = makeDefender(id, col, row);
     p.born = 0.35;
     this.grid[row][col] = p;
     this.plants.push(p);
@@ -252,7 +253,7 @@ export class World {
   }
 
   spawnZombie(id, row, x, opts) {
-    const z = makeZombie(id, row, x, opts);
+    const z = makeInvader(id, row, x, opts);
     this.zombies.push(z);
     return z;
   }
@@ -345,7 +346,7 @@ export class World {
 
     if (this.status === 'intro') {
       this.statusT -= dt;
-      if (this.statusT <= 0) { this.status = 'playing'; this.banner('Plant!', 1.1); }
+      if (this.statusT <= 0) { this.status = 'playing'; this.banner('Defend the hive!', 1.3); }
     }
 
     const live = this.status === 'playing';
@@ -497,7 +498,7 @@ export class World {
       // gargantuar throws an imp over your defences
       if (z.def.throwsImp && !z.thrown && z.hp < z.maxHp * 0.5) {
         z.thrown = true;
-        const imp = this.spawnZombie('imp', z.row, z.x, {});
+        const imp = this.spawnZombie('diveWasp', z.row, z.x, {});
         imp.hittable = false;
         imp.fly = { t: 0, dur: 1.05, x0: z.x, x1: Math.max(L.gx + CELL_W * 0.7, z.x - CELL_W * 4.2), h: 210 };
         sfx('groanBig');
@@ -506,7 +507,7 @@ export class World {
       // reached the mower line?
       if (front(z) < MOWER_X()) {
         const m = this.mowers[z.row];
-        if (m && m.state === 'idle') { m.state = 'run'; sfx('mower'); this.banner('Mower!', 1.2); }
+        if (m && m.state === 'idle') { m.state = 'run'; sfx('mower'); this.banner('Bloom guardian!', 1.2); }
       }
       if (front(z) < HOUSE_LINE() && this.status === 'playing') {
         this.lastLossRow = z.row;
@@ -735,7 +736,7 @@ export class World {
     this.status = 'won';
     this.statusT = 0;
     sfx('win');
-    this.banner('Lawn held', 3);
+    this.banner('Garden held!', 3);
     for (let i = 0; i < 26; i++) {
       this.after(i * 0.06, () => this.particles.burst(
         rnd(L.gx + L.gw, L.gx), rnd(L.gy + L.gh, L.gy), pick(['#ffe27a', '#8bff9a', '#8fd9ff', '#ff9ad2']), 12, 380, 8));

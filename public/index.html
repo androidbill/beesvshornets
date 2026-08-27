@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#183b35">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Pick Your Fight</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="premium.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="Pick Your Fight game board"></canvas>
+    <section id="menu" class="panel">
+      <div class="eyebrow">LANE DEFENCE · NO LEVEL GRIND</div>
+      <h1>Pick <i>Your</i> Fight</h1>
+      <p class="tagline">Build a squad. Hold the line. The fight is yours to pick.</p>
+      <div id="worlds" class="worlds"></div>
+      <div class="menu-actions"><button id="survival" class="secondary">∞ Survival</button><button id="sound" class="icon" aria-label="Toggle sound">♪</button></div>
+    </section>
+    <section id="loadout" class="panel hidden">
+      <div class="eyebrow" id="loadout-world">FRONT LAWN</div>
+      <h2 id="loadout-title">Choose your squad</h2>
+      <p id="loadout-copy">Pick your cards, then hold the lawn.</p>
+      <div id="cards" class="cards"></div>
+      <footer><span id="picked">0 / 6 selected</span><button id="battle" disabled>Start battle</button></footer>
+    </section>
+    <section id="level-map" class="panel map-panel hidden">
+      <div class="eyebrow">BLOOM GARDEN</div>
+      <h2>Bees vs Hornets</h2>
+      <p class="map-copy">Follow the nectar trail to the Hornet Queen.</p>
+      <div id="level-path" class="level-path"></div>
+      <button id="map-back" class="secondary">Worlds</button>
+    </section>
+    <section id="result" class="panel hidden"><div class="eyebrow" id="result-kicker">THE LAWN IS SAFE</div><h2 id="result-title">Victory!</h2><p id="result-copy"></p><div class="menu-actions"><button id="again" class="secondary">Try again</button><button id="continue">Continue</button></div></section>
+    <div id="hud" class="hidden"><div id="seedbar"></div><button id="shovel" title="Recall defender">↶</button><button id="food" title="Royal Jelly">✦ <b>0</b></button><div id="sun"><i></i><b>50</b><small>NECTAR</small></div><div id="wave"><span></span></div><button id="pause" class="icon" aria-label="Pause">Ⅱ</button></div>
+    <div id="turn" class="hidden">Rotate your device<br><small>Pick Your Fight is made for landscape.</small></div>
+  </main>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
