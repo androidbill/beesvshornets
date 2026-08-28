@@ -67,8 +67,19 @@ const bomberSpec = withParts(beeBody(['#f8c84a', '#b97620']), { p: 'carry', styl
 const royalSpec = withParts(beeBody(['#fff08b', '#d89722'], 1.12), { p: 'hat', style: 'crown', y: -112 }, { p: 'emitter', style: 'cannon', x: 30, y: -65, s: .85, fill: ['#f3d873', '#95611c'] }, { p: 'aura', y: -64, r: 82, color: '#ffe270', a: .2 });
 
 export const DEFENDERS = {
-  nectarBee: defender('nectarBee', 'sunflower', { name: 'Nectar Bee', description: 'Gathers nectar that funds the whole hive.', blurb: 'Produces 25 Nectar regularly.', role: 'Generator', cost: 50, rarity: 'common' }, nectarSpec),
-  workerBee: defender('workerBee', 'peashooter', { name: 'Worker Bee', description: 'A dependable pollen-shot attacker.', blurb: 'Reliable ranged damage in one lane.', role: 'Attacker', cost: 100, rarity: 'common' }, workerSpec),
+  nectarBee: defender('nectarBee', 'sunflower', { name: 'Nectar Bee', description: 'Gathers nectar that funds the whole hive.', blurb: 'Produces 25 Nectar every 11 seconds.', role: 'Generator', cost: 50, rarity: 'common' }, nectarSpec, {
+    place(p) { p.cd = 3.5; },
+    update(p, dt, w) {
+      p.cd -= dt;
+      p.glow = Math.max(0, (p.glow || 0) - dt * 1.8);
+      if (p.cd > 0) return;
+      p.cd = 11;
+      p.glow = 1;
+      w.spawnSun({ x: p.x + rnd(22, -22), y: p.y - 78, value: 25, hop: true });
+      w.particles.ring(p.x, p.y - 60, 'rgba(255,220,86,.9)', 24, 2.8, .5);
+    },
+  }),
+  workerBee: defender('workerBee', 'peashooter', { name: 'Worker Bee', description: 'A dependable pollen-shot attacker.', blurb: 'Reliable ranged damage in one lane.', role: 'Attacker', cost: 100, rarity: 'common', muzzleX: 47, muzzleY: -50 }, workerSpec),
   bumbleGuard: defender('bumbleGuard', 'wallnut', { name: 'Bumble Guard', description: 'A fluffy wall with a stubborn streak.', blurb: 'Soaks up damage and protects the row.', role: 'Tank', cost: 75, rarity: 'common', unlockRequirement: 2 }, bumbleSpec),
   guardBee: defender('guardBee', 'bonkchoy', { name: 'Guard Bee', description: 'Swats anything that enters its airspace.', blurb: 'Devastating at close range.', role: 'Brawler', cost: 150, rarity: 'uncommon', unlockRequirement: 3 }, guardSpec),
   stingerBee: defender('stingerBee', 'repeater', { name: 'Stinger Bee', description: 'Fires paired royal-jelly darts.', blurb: 'Fast double-shot ranged attacker.', role: 'Rapid', cost: 200, rarity: 'uncommon', unlockRequirement: 3 }, stingerSpec),
@@ -96,7 +107,10 @@ const queenSpec = withParts(hornetBody(['#f2a62e', '#783719'], 1.48), { p: 'hat'
 
 export const INVADERS = {
   scoutHornet: invader('scoutHornet', 'shambler', { name: 'Scout Hornet', blurb: 'A steady frontline intruder.', cost: 1 }, scoutSpec),
-  workerHornet: invader('workerHornet', 'flag', { name: 'Worker Hornet', blurb: 'Calls the swarm forward.', cost: 1 }, workerHornetSpec),
+  workerHornet: invader('workerHornet', 'flag', {
+    name: 'Worker Hornet', blurb: 'Stops to fire venom darts from a distance.', cost: 1,
+    ranged: true, range: 470, attackRate: 2.6, projectileDamage: 34, projectileSpeed: 430, projectileMuzzleX: -52, projectileMuzzleY: -52,
+  }, workerHornetSpec),
   fastWasp: invader('fastWasp', 'polevault', { name: 'Fast Wasp', blurb: 'Dashes over the first blocker.', cost: 2 }, fastSpec),
   armoredHornet: invader('armoredHornet', 'cone', { name: 'Armored Hornet', blurb: 'Wears scavenged beetle-shell armor.', cost: 2 }, armorSpec),
   diveWasp: invader('diveWasp', 'imp', { name: 'Dive Wasp', blurb: 'Tiny, fast and easily underestimated.', cost: 2 }, diveSpec),
@@ -113,7 +127,7 @@ export function makeDefender(id, col, row) {
   def.place?.(unit); return unit;
 }
 export function stubDefender(id) { const def = DEFENDERS[id]; return { def, id, col: 0, row: 0, x: 0, y: 0, hp: def.hp, maxHp: def.hp, cd: 99, t: 0, seed: .4, blink: 1, hurt: 0, foodT: 0, fireAnim: 0, punch: 0, armed: true, fuse: 1.05, burst: 0 }; }
-export function makeInvader(id, row, x, opts = {}) { const def = INVADERS[id]; return { def, id, row, x, y: groundY(row), hp: def.hp, maxHp: def.hp, armorHp: def.armor || 0, shieldHp: def.shield || 0, speed: def.speed, state: 'walk', walkT: rnd(6), seed: Math.random(), blink: 1, blinkT: rnd(5, 1), chill: 0, frozen: 0, burn: 0, knock: 0, hurtT: 0, dead: false, dying: 0, hittable: true, eatT: 0, target: null, vaulted: false, rage: 0, smash: 0, carriesFood: !!opts.carriesFood, thrown: false, bob: 0, ...opts }; }
+export function makeInvader(id, row, x, opts = {}) { const def = INVADERS[id]; return { def, id, row, x, y: groundY(row), hp: def.hp, maxHp: def.hp, armorHp: def.armor || 0, shieldHp: def.shield || 0, speed: def.speed, state: 'walk', walkT: rnd(6), seed: Math.random(), blink: 1, blinkT: rnd(5, 1), chill: 0, frozen: 0, burn: 0, knock: 0, hurtT: 0, dead: false, dying: 0, hittable: true, eatT: 0, target: null, vaulted: false, rage: 0, smash: 0, carriesFood: !!opts.carriesFood, thrown: false, bob: 0, shotCd: rnd(1.3, .35), attackAnim: 0, ...opts }; }
 
 export const BEES_VS_HORNETS = {
   id: 'bees-hornets', displayName: 'Bees vs Hornets', shortName: 'Garden War',

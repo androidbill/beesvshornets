@@ -102,5 +102,7 @@ export const SCENES = {
 
 export const SUN_VALUE = 25;
 export const PLANT_FOOD_MAX = 3;
-export const SKY_SUN_MIN = 8.5;
-export const SKY_SUN_MAX = 12.5;
+// Bloom Garden should feel generous and active: nectar falls often enough that
+// the player is making deployment choices instead of waiting on the economy.
+export const SKY_SUN_MIN = 5;
+export const SKY_SUN_MAX = 7.5;

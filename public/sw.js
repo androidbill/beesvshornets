@@ -1,11 +1,11 @@
-const CACHE = 'pick-your-fight-v6';
+const CACHE = 'pick-your-fight-alpha-01-01-02';
 const CORE = [
   './', './index.html', './style.css', './premium.css', './manifest.webmanifest', './version.js',
   './js/main.js', './js/art.js', './js/config.js', './js/world.js', './js/save.js',
   './js/creature.js', './js/plants.js', './js/zombies.js',
   './js/battle-packs/bees-hornets.js', './js/battle-packs/bees-hornets-levels.js',
   './js/particles.js', './js/util.js', './js/audio.js',
-  './assets/art/backgrounds/title-hero.webp',
+  './assets/art/backgrounds/title-hero.webp', './assets/art/backgrounds/title-hero-v2.png', './assets/art/backgrounds/title-hero-v3.png', './assets/art/backgrounds/title-hero-v4.png',
   './assets/art/backgrounds/bloom-battlefield.webp',
   './assets/art/backgrounds/bloom-map.webp',
   './assets/art/defenders/nectar-bee.webp',
@@ -23,7 +23,11 @@ const CORE = [
   './assets/art/invaders/dive-wasp.webp',
   './assets/art/invaders/shield-hornet.webp',
   './assets/art/invaders/hornet-captain.webp',
-  './assets/art/invaders/hornet-queen.webp'
+  './assets/art/invaders/hornet-queen.webp',
+  './assets/art/effects/honey-guardian.webp',
+  './assets/art/effects/nectar-drop.webp',
+  './assets/art/effects/pollen-bolt.webp',
+  './assets/art/effects/venom-dart.webp'
 ];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));

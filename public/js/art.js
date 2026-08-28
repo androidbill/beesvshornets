@@ -1,7 +1,7 @@
 const ROOT = './assets/art/';
 
 export const ART_URLS = {
-  titleHero: `${ROOT}backgrounds/title-hero.webp`,
+  titleHero: `${ROOT}backgrounds/title-hero-v4.png`,
   battlefield: `${ROOT}backgrounds/bloom-battlefield.webp`,
   levelMap: `${ROOT}backgrounds/bloom-map.webp`,
   nectarBee: `${ROOT}defenders/nectar-bee.webp`,
@@ -20,6 +20,10 @@ export const ART_URLS = {
   shieldHornet: `${ROOT}invaders/shield-hornet.webp`,
   hornetCaptain: `${ROOT}invaders/hornet-captain.webp`,
   hornetQueen: `${ROOT}invaders/hornet-queen.webp`,
+  honeyGuardian: `${ROOT}effects/honey-guardian.webp`,
+  nectarDrop: `${ROOT}effects/nectar-drop.webp`,
+  pollenBolt: `${ROOT}effects/pollen-bolt.webp`,
+  venomDart: `${ROOT}effects/venom-dart.webp`,
 };
 
 const bank = new Map();

@@ -26,11 +26,12 @@ export class World {
     this.time = 0;
     this.status = 'intro';        // intro | playing | won | lost
     this.statusT = 3.2;
-    this.sun = level.nectar ?? level.sun ?? 50;
+    this.sun = 5000; // testing mode: generous starting resource
     this.plants = [];
     this.grid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
     this.zombies = [];
     this.peas = [];
+    this.enemyShots = [];
     this.lobs = [];
     this.suns = [];
     this.foods = [];
@@ -124,8 +125,8 @@ export class World {
     }
     for (let i = this.suns.length - 1; i >= 0; i--) {
       const s = this.suns[i];
-      if (Math.hypot(s.x - wx, s.y - wy) < 54) {
-        this.collectSun(s, i);
+      if (s.state !== 'collect' && Math.hypot(s.x - wx, s.y - wy) < 62) {
+        this.collectSun(s);
         return true;
       }
     }
@@ -167,20 +168,34 @@ export class World {
       if (pk.cd > 0 || this.sun < DEFENDERS[pk.id].cost) { sfx('err'); return false; }
       this.place(pk.id, col, row);
       this.sun -= DEFENDERS[pk.id].cost;
-      pk.cd = pk.recharge;
+      pk.cd = 0;
       this.selected = -1;
       return true;
     }
     return false;
   }
 
-  collectSun(s, i) {
-    this.suns.splice(i, 1);
+  movePlant(plant, col, row) {
+    if (!plant || plant.dead || plant.row !== row || !this.playableRow(row) || this.plantAt(col, row) || this.graveAt(col, row)) return false;
+    this.grid[plant.row][plant.col] = null;
+    plant.col = col; plant.row = row; plant.x = cellCX(col); plant.y = groundY(row);
+    this.grid[row][col] = plant;
+    this.particles.ring(plant.x, plant.y - 42, '#ffe27a', 18, 3, .35);
+    sfx('click');
+    return true;
+  }
+
+  collectSun(s) {
+    if (s.state === 'collect') return;
+    s.state = 'collect';
     this.sun += s.value;
-    this.stats.sun += s.value;
+    this.suns.splice(this.suns.indexOf(s), 1);
+    s.collectT = 0;
+    s.collectX = s.x;
+    s.collectY = s.y;
     sfx('sun');
-    this.particles.sparkle(s.x, s.y, '#fff2a8', 9);
-    this.particles.float(s.x, s.y - 20, `+${s.value}`, '#ffe98a');
+    this.particles.sparkle(s.x, s.y, '#fff2a8', 13);
+    this.particles.float(s.x, s.y - 28, `+${s.value}`, '#ffe98a');
   }
 
   place(id, col, row) {
@@ -226,9 +241,17 @@ export class World {
 
   spawnPea(o) {
     this.peas.push({
-      x: o.x, y: o.y, row: o.row, vx: o.speed || 540,
+      x: o.x, y: o.y, row: o.row, vx: (o.speed || 540) * .84,
       dmg: o.dmg, kind: o.kind || 'pea', r: o.kind === 'ice' ? 12 : 11,
       ty: o.arriveY ? groundY(o.row) - 70 : null, t: 0, lit: new Set(),
+    });
+    this.particles.sparkle(o.x + 8, o.y, o.kind === 'ice' ? '#b8ecff' : '#ffd75d', 4);
+  }
+
+  spawnEnemyShot(o) {
+    this.enemyShots.push({
+      x: o.x, y: o.y, row: o.row, vx: o.speed || 420,
+      dmg: o.dmg || 30, kind: o.kind || 'venom', target: o.target, t: 0,
     });
   }
 
@@ -356,6 +379,7 @@ export class World {
     this.updatePlants(dt, live);
     this.updateZombies(dt, live);
     this.updatePeas(dt);
+    this.updateEnemyShots(dt);
     this.updateLobs(dt);
     this.updateFires(dt);
     this.updateSuns(dt);
@@ -370,7 +394,7 @@ export class World {
           this.skySunT = rnd(SKY_SUN_MAX, SKY_SUN_MIN);
           const x = L.gx + rnd(L.gw * 0.9, L.gw * 0.06);
           this.suns.push({
-            x, y: L.gy - 120, value: SUN_VALUE, vx: 0, vy: 62,
+            x, y: L.gy - 120, value: SUN_VALUE, vx: 0, vy: 88,
             restY: L.gy + rnd(L.gh * 0.85, L.gh * 0.1), sky: true, state: 'fall', life: 13, t: rnd(6),
           });
         }
@@ -391,6 +415,7 @@ export class World {
       p.t += dt;
       if (p.born > 0) p.born -= dt;
       if (p.hurt > 0) p.hurt -= dt;
+      if (p.wob > 0) p.wob = Math.max(0, p.wob - dt * 5);
       if (p.foodT > 0) p.foodT -= dt;
       p.blinkT -= dt;
       if (p.blinkT <= 0) { p.blinkT = rnd(6, 2.5); p.blinkAnim = 0.16; }
@@ -412,6 +437,7 @@ export class World {
         continue;
       }
       if (z.hurtT > 0) z.hurtT -= dt;
+      if (z.attackAnim > 0) z.attackAnim = Math.max(0, z.attackAnim - dt * 3.8);
       if (z.burn > 0) z.burn -= dt;
       z.blinkT -= dt;
       if (z.blinkT <= 0) { z.blinkT = rnd(7, 3); z.blinkAnim = 0.14; }
@@ -458,6 +484,35 @@ export class World {
       const col = colAt(fx);
       const target = this.plantAt(col, z.row);
       const blocking = target && !target.def.walkover && !target.dead;
+
+      // Ranged invaders hold their ground once a defender enters their firing
+      // envelope. The projectile and recoil share one timer so the animation
+      // lands exactly when the shot is created.
+      if (z.def.ranged && !blocking) {
+        z.shotCd = Math.max(0, (z.shotCd || 0) - dt);
+        let rangedTarget = null;
+        for (const p of this.plants) {
+          if (p.dead || p.row !== z.row || p.x >= z.x) continue;
+          const distance = z.x - p.x;
+          if (distance > z.def.range) continue;
+          if (!rangedTarget || p.x > rangedTarget.x) rangedTarget = p;
+        }
+        if (rangedTarget) {
+          z.state = 'shoot';
+          z.walkT += dt * .12;
+          if (z.shotCd <= 0) {
+            z.shotCd = z.def.attackRate;
+            z.attackAnim = 1;
+            this.spawnEnemyShot({
+              x: z.x + (z.def.projectileMuzzleX ?? -45), y: z.y + (z.def.projectileMuzzleY ?? -52), row: z.row, target: rangedTarget,
+              dmg: z.def.projectileDamage, speed: z.def.projectileSpeed, kind: 'venom',
+            });
+            this.particles.sparkle(z.x + (z.def.projectileMuzzleX ?? -45), z.y + (z.def.projectileMuzzleY ?? -52), '#bbff45', 6);
+            sfx('shootIce', .12);
+          }
+          continue;
+        }
+      }
 
       if (z.def.crusher) {
         if (blocking) {
@@ -557,12 +612,42 @@ export class World {
             if (Math.abs(z.x - hit.x) < 68) this.hurt(z, b.dmg * 0.5, 'fire');
           }
         } else if (b.kind === 'ice') this.particles.frostHit(b.x, b.y);
-        else this.particles.splat(b.x, b.y, blocked ? '#cfd8de' : '#8fd45e');
+        else {
+          this.particles.splat(b.x, b.y, blocked ? '#d9d5c6' : '#ffc84a');
+          this.particles.ring(b.x, b.y, blocked ? 'rgba(230,235,235,.7)' : 'rgba(255,220,80,.72)', 8, 2.4, .22);
+        }
         sfx('splat', 0.05);
         this.peas.splice(i, 1);
         continue;
       }
       if (b.x > L.vw + 60) this.peas.splice(i, 1);
+    }
+  }
+
+  updateEnemyShots(dt) {
+    for (let i = this.enemyShots.length - 1; i >= 0; i--) {
+      const b = this.enemyShots[i];
+      b.t += dt;
+      b.x -= b.vx * dt;
+      const targetY = b.target && !b.target.dead ? b.target.y - 55 : groundY(b.row) - 55;
+      b.y = lerp(b.y, targetY, Math.min(1, dt * 6));
+      let hit = null;
+      for (const p of this.plants) {
+        if (p.dead || p.row !== b.row) continue;
+        if (b.x <= p.x + 32 && b.x >= p.x - 42) {
+          if (!hit || p.x > hit.x) hit = p;
+        }
+      }
+      if (hit) {
+        this.hurtPlant(hit, b.dmg);
+        hit.wob = 1;
+        this.particles.burst(b.x, b.y, '#9be83f', 9, 210, 5);
+        this.particles.ring(b.x, b.y, 'rgba(170,255,80,.8)', 12, 2.8, .3);
+        sfx('splat', .1);
+        this.enemyShots.splice(i, 1);
+        continue;
+      }
+      if (b.x < L.houseX - 80) this.enemyShots.splice(i, 1);
     }
   }
 
@@ -578,8 +663,8 @@ export class World {
         this.lobs.splice(i, 1);
         sfx('melon');
         this.shake(7, 0.2);
-        this.particles.burst(m.x, m.y, '#7fd45e', 16, 340, 9);
-        this.particles.ring(m.x, m.y, 'rgba(180,240,150,.8)', 26, 3.4, 0.4);
+        this.particles.burst(m.x, m.y, '#ffc84a', 18, 360, 9);
+        this.particles.ring(m.x, m.y, 'rgba(255,225,120,.86)', 26, 3.4, 0.4);
         for (const z of this.zombies) {
           if (z.dead || !z.hittable) continue;
           const dx = Math.abs(z.x - m.x);
@@ -609,7 +694,19 @@ export class World {
     for (let i = this.suns.length - 1; i >= 0; i--) {
       const s = this.suns[i];
       s.t += dt;
-      if (s.state === 'hop') {
+      if (s.state === 'collect') {
+        s.collectT += dt;
+        const k = clamp(s.collectT / .52, 0, 1);
+        const ease = 1 - Math.pow(1 - k, 3);
+        s.x = lerp(s.collectX, L.vw - 238, ease);
+        s.y = lerp(s.collectY, 60, ease) - Math.sin(k * Math.PI) * 90;
+        if (k >= 1) {
+          this.sun += s.value;
+          this.stats.sun += s.value;
+          this.particles.sparkle(s.x, s.y, '#fff2a8', 10);
+          this.suns.splice(i, 1);
+        }
+      } else if (s.state === 'hop') {
         s.vy += 900 * dt;
         s.x += s.vx * dt;
         s.y += s.vy * dt;
@@ -648,7 +745,7 @@ export class World {
       m.spin += dt * 26;
       this.particles.add({
         x: m.x - 20, y: groundY(m.row) + 4, vx: rnd(-160, -320), vy: rnd(-40, -220),
-        g: 900, r: rnd(6, 2), color: '#5fbf3f', life: rnd(0.5, 0.2), shrink: true,
+        g: 900, r: rnd(6, 2), color: Math.random() < .5 ? '#ffcf4f' : '#f3a52c', life: rnd(0.5, 0.2), shrink: true,
       });
       for (const z of this.zombies) {
         if (z.dead || z.row !== m.row) continue;

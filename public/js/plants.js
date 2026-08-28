@@ -103,7 +103,7 @@ function fire(p, w, dmg, kind, muzzleY) {
   if (p.dead) return;
   p.fireAnim = 1;
   w.spawnPea({
-    x: p.x + 40, y: p.y + muzzleY, row: p.row, dmg, kind,
+    x: p.x + (p.def?.muzzleX ?? 40), y: p.y + (p.def?.muzzleY ?? muzzleY), row: p.row, dmg, kind,
     speed: kind === 'ice' ? 470 : 540,
   });
   sfx(kind === 'ice' ? 'shootIce' : 'shoot', 0.045);

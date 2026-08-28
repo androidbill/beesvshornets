@@ -34,7 +34,7 @@ body { background: #102a22; }
 #menu::before,
 #result::before,
 #loadout::before {
-  background: url('./assets/art/backgrounds/title-hero.webp') center / cover no-repeat;
+  background: url('./assets/art/backgrounds/title-hero-v4.png') center / cover no-repeat;
   transform: scale(1.012);
 }
 
@@ -311,6 +311,25 @@ footer {
   box-shadow: 0 5px 0 #0d2c1f, 0 9px 20px rgba(5,18,12,.3), inset 0 1px 0 rgba(255,255,255,.16);
 }
 
+#sun i {
+  width: 30px;
+  height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: url('./assets/art/effects/nectar-drop.webp') center / contain no-repeat;
+  transform: none;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 5px rgba(255, 195, 41, .55));
+}
+
+@keyframes nectar-counter-pop {
+  0% { transform: scale(.82); filter: brightness(1.7); }
+  55% { transform: scale(1.13); filter: brightness(1.25); }
+  100% { transform: scale(1); filter: none; }
+}
+
+#sun.counter-pop { animation: nectar-counter-pop .36s cubic-bezier(.2,.9,.25,1.25); }
+
 #shovel { top: 20px; right: 130px; }
 #food { top: 20px; right: 72px; }
 #pause { top: 20px; right: 18px; }
@@ -348,3 +367,9 @@ footer {
   .card canvas { height: 58px; }
   footer { margin-top: 10px; padding: 6px 8px 6px 14px; }
 }
+
+@media (orientation: portrait) and (pointer: coarse) {
+#turn.hidden { display: flex !important; }
+}
+
+#mute { position: absolute; top: 13px; right: 112px; pointer-events: auto; z-index: 2; }
