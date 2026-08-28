@@ -19,6 +19,7 @@ import {
   unlock, playMusic, stopMusic, setEnabled, isEnabled, setVolume, getVolume,
 } from './audio.js';
 import { SaveStore } from './save.js';
+import { ACHIEVEMENTS } from './achievements.js';
 import { preloadArt, artImage } from './art.js';
 import { APP_VERSION } from '../version.js';
 
@@ -150,6 +151,18 @@ function showSettings() {
     `${s.wins} victories · ${s.enemiesDefeated} invaders stopped · `
     + `${s.defendersDeployed} defenders deployed · ${s.nectarCollected} nectar collected · `
     + `${s.wavesCleared} waves cleared · ${s.perfectVictories} perfect victories`;
+
+  const have = new Set(SaveStore.achievements());
+  $('#achieve-count').textContent = `ACHIEVEMENTS · ${have.size} / ${ACHIEVEMENTS.length}`;
+  const grid = $('#achieve-grid');
+  grid.innerHTML = '';
+  for (const a of ACHIEVEMENTS) {
+    const on = have.has(a.id);
+    const card = document.createElement('div');
+    card.className = `achieve-card${on ? '' : ' locked'}`;
+    card.innerHTML = `<b>${on ? a.name : '???'}</b><small>${on ? a.desc : 'Not yet unlocked'}</small>`;
+    grid.append(card);
+  }
 }
 
 // -------------------------------------------------------------- rendering
@@ -826,14 +839,34 @@ function showResult() {
   if (won) {
     const used = world.mowers.filter((m) => m.state !== 'idle').length;
     stars = used === 0 ? 3 : used === 1 ? 2 : 1;
-    if (level.id) SaveStore.recordWin(level, world.stats, stars);
   }
+  // Lifetime stats and achievements come from every attempt, not just wins —
+  // what you fought through on a loss is real progress too.
+  const unlocked = SaveStore.recordRun(level, world.stats, { won, stars });
+
   $('#result-kicker').textContent = won ? 'THE HIVE IS SAFE' : 'THE SWARM BROKE THROUGH';
   $('#result-title').textContent = won ? 'Garden defended!' : 'Regroup and return';
   $('#result-stars').textContent = won ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '';
   $('#result-copy').textContent = won
     ? `${world.stats.killed} invaders stopped across ${world.stats.waves} waves.`
     : `You held ${world.stats.waves} wave${world.stats.waves === 1 ? '' : 's'}. Change your squad and go again.`;
+
+  unlocked.forEach((a, i) => showAchievementToast(a, i));
+}
+
+// ------------------------------------------------------------ achievements
+
+function showAchievementToast(achievement, stackIndex = 0) {
+  const el = document.createElement('div');
+  el.className = 'achieve-toast';
+  el.style.setProperty('--stack', stackIndex);
+  el.innerHTML = `<b>Achievement unlocked</b><span>${achievement.name}</span><small>${achievement.desc}</small>`;
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add('in'));
+  setTimeout(() => {
+    el.classList.remove('in');
+    el.addEventListener('transitionend', () => el.remove(), { once: true });
+  }, 3600 + stackIndex * 250);
 }
 
 // ------------------------------------------------------------------ input

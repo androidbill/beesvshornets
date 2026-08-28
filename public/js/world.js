@@ -62,7 +62,7 @@ export class World {
     this.skySunT = rnd(SKY_SUN_MAX, SKY_SUN_MIN);
     this.rows = level.rows || [0, 1, 2, 3, 4];
 
-    this.stats = { killed: 0, sun: 0, planted: 0, food: 0, waves: 0 };
+    this.stats = { killed: 0, sun: 0, planted: 0, food: 0, waves: 0, defendersLost: 0, bossesDefeated: 0 };
     this.lastLossRow = 2;
 
     // Battle powers: a fixed handful of charges per level, so using one is a
@@ -248,6 +248,7 @@ export class World {
     p.hurt = 0.25;
     if (p.hp <= 0) {
       this.kill(p);
+      this.stats.defendersLost++;
       this.particles.crumbs(p.x, p.y - 34, '#6fce4e', 12);
       this.particles.puff(p.x, p.y - 34, '#cfe7bd', 6);
     }
@@ -345,6 +346,7 @@ export class World {
     this.stats.killed++;
     if (z === this.boss) {
       this.boss = null;
+      this.stats.bossesDefeated++;
       this.shake(26, 1);
       this.flash('#fff0b0', 0.6);
       for (let i = 0; i < 18; i++) {
@@ -562,6 +564,7 @@ export class World {
             this.shake(12, 0.25);
             this.particles.crumbs(target.x, target.y - 40, '#6fce4e', 12);
             this.kill(target);
+            this.stats.defendersLost++;
           } else {
           if (z.smash <= 0) { z.smash = 0.5; sfx('stomp', 0.2); }
           z.smash -= dt;
@@ -570,6 +573,7 @@ export class World {
             this.particles.dirt(target.x, target.y, 20);
             this.particles.crumbs(target.x, target.y - 40, '#6fce4e', 14);
             this.kill(target);
+            this.stats.defendersLost++;
             z.smash = 0;
           }
           continue;

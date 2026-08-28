@@ -9,7 +9,7 @@ const CORE = [
   './', './index.html', './style.css', './premium.css',
   './manifest.webmanifest', './version.js',
   './js/main.js', './js/art.js', './js/config.js', './js/world.js',
-  './js/save.js', './js/util.js', './js/audio.js', './js/particles.js',
+  './js/save.js', './js/achievements.js', './js/util.js', './js/audio.js', './js/particles.js',
   './js/creature.js', './js/defender-roles.js', './js/invader-roles.js',
   './js/battle-packs/bees-hornets.js', './js/battle-packs/bees-hornets-levels.js',
   './icons/icon.svg',

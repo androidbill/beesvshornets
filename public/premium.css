@@ -521,6 +521,52 @@ footer {
 
 .result-stars { font-size: 40px; letter-spacing: .1em; color: #ffd45f; text-shadow: 0 4px 10px rgba(0,0,0,.4); margin: 6px 0 4px; }
 
+/* Achievement toasts float in from the top, stacked by --stack index. */
+.achieve-toast {
+  position: fixed;
+  z-index: 60;
+  top: calc(18px + var(--stack, 0) * 78px);
+  left: 50%;
+  width: min(360px, 90vw);
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgba(60, 100, 40, .96), rgba(20, 46, 24, .97));
+  border: 2px solid rgba(255, 224, 120, .55);
+  box-shadow: 0 10px 26px rgba(4, 14, 8, .5), 0 0 30px rgba(255, 212, 95, .18);
+  color: #fff6d8;
+  text-align: center;
+  transform: translate(-50%, -140%);
+  opacity: 0;
+  transition: transform .4s cubic-bezier(.2,.9,.25,1.3), opacity .3s;
+  pointer-events: none;
+}
+.achieve-toast.in { transform: translate(-50%, 0); opacity: 1; }
+.achieve-toast b { display: block; font-size: 10px; letter-spacing: .14em; color: #ffe37c; }
+.achieve-toast span { display: block; font-size: 19px; font-weight: 800; margin: 2px 0; }
+.achieve-toast small { display: block; font-size: 12px; color: #d8ecd0; }
+
+/* The achievement roster in Settings — a compact grid, locked ones dimmed. */
+.achieve-grid {
+  width: min(560px, 92vw);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 4px 0 18px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+.achieve-card {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 244, 187, .22);
+  background: rgba(10, 30, 21, .55);
+  text-align: left;
+}
+.achieve-card b { display: block; font-size: 12px; color: #ffe37c; }
+.achieve-card small { display: block; font-size: 10px; color: #b9d9cb; margin-top: 2px; line-height: 1.3; }
+.achieve-card.locked { opacity: .42; filter: grayscale(.6); }
+.achieve-card.locked b { color: #dfe6da; }
+
 /* Debug panel — never present unless ?debug is on the URL or the flag is set. */
 #debug {
   position: fixed;
