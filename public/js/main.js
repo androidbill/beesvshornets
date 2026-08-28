@@ -24,8 +24,20 @@ import { ACHIEVEMENTS } from './achievements.js';
 import { preloadArt, artImage } from './art.js';
 import { APP_VERSION } from '../version.js';
 
+let swRegistration = null;
 if ('serviceWorker' in navigator) {
-  addEventListener('load', () => navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`));
+  // controllerchange also fires the very first time a page gets a worker at
+  // all - including right after this page's own refresh flow unregisters
+  // and reloads - which is normal activation, not an update. Only a page
+  // that already had a controller and then got a *different* one is a
+  // genuine swap worth telling the player about.
+  const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+  addEventListener('load', () => {
+    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`).then((reg) => { swRegistration = reg; });
+  });
+  if (hadControllerAtLoad) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => showUpdateBanner());
+  }
 }
 
 // A hidden, URL- or storage-gated dev panel per the design brief (S32). Never
@@ -34,6 +46,63 @@ const DEBUG = new URLSearchParams(location.search).has('debug') || localStorage.
 if (DEBUG) localStorage.setItem('pyf-debug', '1');
 
 const $ = (sel) => document.querySelector(sel);
+
+// ------------------------------------------------------------ version check
+//
+// Players must always be on the latest build. A stale service worker can
+// otherwise keep serving last week's HTML/JS indefinitely - this compares
+// the version this tab actually loaded against whatever version.js reads
+// *right now* on the server, bypassing the service worker's own cache (which
+// would just answer with its own possibly-stale copy) via a marked query
+// param sw.js is written to always send to network. Genuinely new code from
+// this session onward never gets silently left behind.
+
+let updateShown = false;
+
+function showUpdateBanner() {
+  if (updateShown) return;
+  updateShown = true;
+  const el = document.createElement('div');
+  el.id = 'update-banner';
+  el.innerHTML = '<span>A new version is ready.</span><button id="update-refresh">Refresh</button>';
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add('in'));
+  el.querySelector('#update-refresh').onclick = async () => {
+    const btn = el.querySelector('#update-refresh');
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+    // A plain reload is not safe here: whichever worker is in control right
+    // now is what answers the very next navigation too, and this file's own
+    // source never changes between versions - only the ?v= query string
+    // does - which is exactly the kind of update some browsers' byte-compare
+    // can fail to notice, silently leaving a stale worker in place. Rather
+    // than trust that algorithm, unregister outright: the reload then goes
+    // straight to network with no worker able to intercept it, guaranteeing
+    // genuinely fresh files regardless of what any cache still believes.
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch { /* fall through to reload regardless */ }
+    location.reload();
+  };
+}
+
+async function checkForUpdate() {
+  if (updateShown) return;
+  try {
+    const res = await fetch(`version.js?no-sw-cache=1&t=${Date.now()}`, { cache: 'no-store' });
+    if (res.ok) {
+      const text = await res.text();
+      const found = text.match(/APP_VERSION = '([^']+)'/);
+      if (found && found[1] !== APP_VERSION) showUpdateBanner();
+    }
+  } catch { /* offline, or a blip - the next poll tries again */ }
+  swRegistration?.update().catch(() => {});
+}
+
+addEventListener('load', () => setTimeout(checkForUpdate, 4000));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+setInterval(checkForUpdate, 3 * 60 * 1000);
 
 // Read once from the active battle pack rather than hardcoded, so a future
 // pack's own resource (Energy, Supplies, Gold...) needs no changes here.

@@ -12,7 +12,8 @@ const CORE = [
   './js/save.js', './js/achievements.js', './js/util.js', './js/audio.js', './js/particles.js',
   './js/creature.js', './js/defender-roles.js', './js/invader-roles.js',
   './js/battle-packs/bees-hornets.js', './js/battle-packs/bees-hornets-levels.js',
-  './icons/icon.svg',
+  './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
+  './icons/icon-512-maskable.png', './icons/apple-touch-icon.png', './icons/favicon-32.png',
 ];
 
 // Artwork the game actually draws. Kept separate from CORE only for reading
@@ -76,6 +77,14 @@ self.addEventListener('activate', (event) => {
 // deploy can never be served from the previous build's cache.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // The page's own update check (main.js) needs a real answer from the
+  // network every time, not whatever this exact service worker instance
+  // already has cached - that would just confirm its own staleness to
+  // itself. Marked requests skip the cache entirely, both read and write.
+  if (event.request.url.includes('no-sw-cache=1')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
   // <audio> elements issue byte-range requests (Chrome does this even on a
   // plain, non-seeking play()). A 206 Partial Content response cached under
   // the full URL would answer every later request for that file - including
