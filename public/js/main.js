@@ -151,6 +151,22 @@ if (!touchDevice) {
   turnEl?.style.setProperty('display', 'none', 'important');
 }
 
+// The manifest's display_override:"fullscreen" only ever applies to an
+// *installed* PWA, and even then support is inconsistent - Android Chrome
+// commonly falls back to "standalone", which keeps the OS status bar by
+// design. A plain browser tab (not installed at all) can never hide it
+// through the manifest either way. The Fullscreen API is the one thing that
+// actually hides the status bar in both cases - installed or just a tab -
+// but it only works from a real user gesture, so it rides on the buttons
+// that already start something rather than firing on load.
+function goFullscreen() {
+  if (!touchDevice || document.fullscreenElement) return;
+  document.documentElement.requestFullscreen?.().catch(() => {
+    // Denied, unsupported, or already showing a native picker - the game
+    // still works perfectly well without it, just with the status bar up.
+  });
+}
+
 function resize() {
   dpr = Math.min(devicePixelRatio || 1, 2);
   canvas.width = innerWidth * dpr;
@@ -1038,12 +1054,12 @@ addEventListener('pointerup', (e) => {
   }
 });
 
-$('#play').onclick = () => { returnScreen = showMap; showMap(); };
-$('#battle').onclick = start;
+$('#play').onclick = () => { goFullscreen(); returnScreen = showMap; showMap(); };
+$('#battle').onclick = () => { goFullscreen(); start(); };
 $('#again').onclick = () => openLoadout(level);
 $('#continue').onclick = () => returnScreen();
-$('#survival').onclick = () => { returnScreen = showMap; openLoadout(BEE_SURVIVAL); };
-$('#map-survival').onclick = () => openLoadout(BEE_SURVIVAL);
+$('#survival').onclick = () => { goFullscreen(); returnScreen = showMap; openLoadout(BEE_SURVIVAL); };
+$('#map-survival').onclick = () => { goFullscreen(); openLoadout(BEE_SURVIVAL); };
 $('#map-back').onclick = showMenu;
 $('#hud-sound').onclick = toggleSound;
 
