@@ -8,37 +8,132 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Bees vs Hornets</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=alpha.01.01.05">
-  <link rel="stylesheet" href="premium.css?v=alpha.01.01.05">
+  <link rel="stylesheet" href="style.css?v=alpha.01.02.01">
+  <link rel="stylesheet" href="premium.css?v=alpha.01.02.01">
 </head>
 <body>
   <main id="app">
     <canvas id="game" aria-label="Bees vs Hornets game board"></canvas>
+
+    <div id="loading" class="loading">
+      <div class="loading-mark">🐝</div>
+      <div class="loading-bar"><span id="loading-fill"></span></div>
+      <p>Waking the hive…</p>
+    </div>
+
     <section id="menu" class="panel">
       <div class="eyebrow">LANE DEFENCE · NO LEVEL GRIND</div>
       <h1>Bees <i>vs</i> Hornets</h1>
       <p class="tagline">Build your hive. Hold the garden. Defeat the Hornet Queen.</p>
-      <div id="worlds" class="worlds"></div>
-      <div class="menu-actions"><button id="survival" class="secondary">∞ Survival</button><button id="sound" class="icon" aria-label="Toggle sound">♪</button></div>
+      <div class="menu-actions">
+        <button id="play">Play</button>
+        <button id="survival" class="secondary">∞ Survival</button>
+        <button id="settings-open" class="icon" aria-label="Settings">⚙</button>
+      </div>
     </section>
+
+    <section id="settings" class="panel hidden">
+      <div class="eyebrow">SETTINGS</div>
+      <h2>Sound &amp; comfort</h2>
+      <div class="settings-list">
+        <label class="setting-row">
+          <span>Music</span>
+          <input id="opt-music" type="range" min="0" max="1" step="0.05">
+        </label>
+        <label class="setting-row">
+          <span>Sound effects</span>
+          <input id="opt-sfx" type="range" min="0" max="1" step="0.05">
+        </label>
+        <label class="setting-row toggle-row">
+          <span>Reduced motion</span>
+          <input id="opt-motion" type="checkbox">
+        </label>
+      </div>
+      <p class="settings-stats" id="settings-stats"></p>
+      <button id="settings-close" class="secondary">Back</button>
+    </section>
+
     <section id="loadout" class="panel hidden">
-      <div class="eyebrow" id="loadout-world">FRONT LAWN</div>
+      <div class="eyebrow" id="loadout-world">BLOOM GARDEN</div>
       <h2 id="loadout-title">Choose your squad</h2>
       <p id="loadout-copy">Pick your cards, then hold the lawn.</p>
       <div id="cards" class="cards"></div>
       <footer><span id="picked">0 / 6 selected</span><button id="battle" disabled>Start battle</button></footer>
     </section>
+
     <section id="level-map" class="panel map-panel hidden">
       <div class="eyebrow">BLOOM GARDEN</div>
       <h2>Bees vs Hornets</h2>
       <p class="map-copy">Follow the nectar trail to the Hornet Queen.</p>
       <div id="level-path" class="level-path"></div>
-      <button id="map-back" class="secondary">Worlds</button>
+      <div class="menu-actions">
+        <button id="map-back" class="secondary">Title</button>
+        <button id="map-survival" class="secondary">∞ Survival</button>
+      </div>
     </section>
-    <section id="result" class="panel hidden"><div class="eyebrow" id="result-kicker">THE LAWN IS SAFE</div><h2 id="result-title">Victory!</h2><p id="result-copy"></p><div class="menu-actions"><button id="again" class="secondary">Try again</button><button id="continue">Continue</button></div></section>
-    <div id="hud" class="hidden"><div id="seedbar"></div><button id="shovel" title="Recall defender">↶</button><button id="food" title="Royal Jelly">✦ <b>0</b></button><div id="sun"><i></i><b>50</b><small>NECTAR</small></div><div id="wave"><span></span></div><button id="hud-sound" class="icon" aria-label="Toggle sound">🔊</button><button id="pause" class="icon" aria-label="Pause">Ⅱ</button></div>
+
+    <section id="result" class="panel hidden">
+      <div class="eyebrow" id="result-kicker">THE LAWN IS SAFE</div>
+      <h2 id="result-title">Victory!</h2>
+      <p id="result-copy"></p>
+      <div id="result-stars" class="result-stars"></div>
+      <div class="menu-actions">
+        <button id="again" class="secondary">Try again</button>
+        <button id="continue">Continue</button>
+      </div>
+    </section>
+
+    <div id="hud" class="hidden">
+      <div id="seedbar"></div>
+      <div id="powerbar">
+        <button class="power" data-power="freeze" title="Freeze — chills every invader">❄ <b>1</b></button>
+        <button class="power" data-power="blast" title="Blast — burns one lane">💥 <b>1</b></button>
+        <button class="power" data-power="rally" title="Rally — heals and shields the hive">✚ <b>1</b></button>
+      </div>
+      <div id="hud-right">
+        <button id="shovel" title="Recall defender">↶</button>
+        <button id="food" title="Royal Jelly">✦ <b>0</b></button>
+        <div id="sun"><i></i><b>50</b><small id="sun-label">NECTAR</small></div>
+        <button id="hud-sound" class="icon" aria-label="Toggle sound">🔊</button>
+        <button id="pause" class="icon" aria-label="Pause">Ⅱ</button>
+      </div>
+      <div id="wind-badge" class="hidden"><i></i><span>Tailwind</span></div>
+      <div id="wave"><span></span></div>
+      <div id="boss-bar" class="hidden"><b id="boss-name">Hornet Queen</b><div class="boss-hp"><span></span></div></div>
+    </div>
+
+    <div id="pause-menu" class="panel hidden">
+      <div class="eyebrow">PAUSED</div>
+      <h2>Take a breath</h2>
+      <div class="settings-list">
+        <label class="setting-row">
+          <span>Music</span>
+          <input id="pause-music" type="range" min="0" max="1" step="0.05">
+        </label>
+        <label class="setting-row">
+          <span>Sound effects</span>
+          <input id="pause-sfx" type="range" min="0" max="1" step="0.05">
+        </label>
+      </div>
+      <div class="menu-actions">
+        <button id="pause-resume">Resume</button>
+        <button id="pause-quit" class="secondary">Quit to map</button>
+      </div>
+    </div>
+
+    <div id="debug" class="hidden">
+      <b>DEBUG</b>
+      <button data-dbg="sun">+500 nectar</button>
+      <button data-dbg="wave">Skip to next wave</button>
+      <button data-dbg="clear">Kill all invaders</button>
+      <button data-dbg="win">Win level</button>
+      <button data-dbg="lose">Lose level</button>
+      <button data-dbg="speed">Speed ×<span id="dbg-speed">1</span></button>
+      <button data-dbg="fps">FPS: <span id="dbg-fps">–</span></button>
+    </div>
+
     <div id="turn" class="hidden">Rotate your device<br><small>Bees vs Hornets is made for landscape.</small></div>
   </main>
-  <script type="module" src="js/main.js?v=alpha.01.01.05"></script>
+  <script type="module" src="js/main.js?v=alpha.01.02.01"></script>
 </body>
 </html>

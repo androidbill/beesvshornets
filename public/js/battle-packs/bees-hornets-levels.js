@@ -1,13 +1,12 @@
+// BEE_WORLD was a leftover from an earlier multi-world menu (see the project
+// README - this pack now IS the whole game, so its name and tagline live
+// directly in index.html rather than as unused duplicate data here.
 import { INVADERS } from './bees-hornets.js';
-
-export const BEE_WORLD = {
-  id: 'bees-hornets', name: 'Bees vs Hornets', scene: 'day', from: 1, to: 6,
-  tagline: 'Defend Bloom Garden and drive back the invading swarm.',
-};
 
 const level = (id, data) => ({
   id, pack: 'bees-hornets', scene: 'day', slots: 6, nectar: 75, sun: 75,
-  waves: 8, flagEvery: 4, rate: 1, rows: [0, 1, 2, 3, 4], pool: ['scoutHornet'], ...data,
+  waves: 8, flagEvery: 4, rate: 1, rows: [0, 1, 2, 3, 4], pool: ['scoutHornet'],
+  environment: 'wind', powers: { freeze: 1, blast: 1, rally: 1 }, ...data,
 });
 
 export const BEE_LEVELS = [
@@ -16,11 +15,10 @@ export const BEE_LEVELS = [
   level(3, { title: 'Wasp Rush', intro: 'Fast Wasps vault the first defender they meet. Layer your formation.', slots: 4, waves: 8, rate: .95, pool: ['scoutHornet', 'workerHornet', 'fastWasp'] }),
   level(4, { title: 'Shell Game', intro: 'Armored Hornets absorb light attacks. Focus fire or let Guard Bees brawl.', slots: 5, waves: 9, rate: 1.15, pool: ['scoutHornet', 'fastWasp', 'armoredHornet', 'diveWasp'] }),
   level(5, { title: 'Battle for the Blooms', intro: 'A mixed swarm is coming. Bring healing, blockers and something explosive.', slots: 6, waves: 11, rate: 1.45, pool: ['scoutHornet', 'workerHornet', 'fastWasp', 'armoredHornet', 'diveWasp', 'shieldHornet', 'hornetCaptain'] }),
-  level(6, { title: 'Queen of the Nest', intro: 'The Hornet Queen is here. She crushes defenders and launches Dive Wasps.', slots: 6, nectar: 125, sun: 125, waves: 10, flagEvery: 5, rate: 1.7, boss: 'hornetQueen', pool: ['scoutHornet', 'armoredHornet', 'diveWasp', 'shieldHornet', 'hornetCaptain', 'hornetQueen'] }),
+  level(6, { title: 'Queen of the Nest', intro: 'The Hornet Queen summons hornets, relocates lanes, then dive-charges. Watch her health bar for the next phase.', slots: 6, nectar: 125, sun: 125, waves: 10, flagEvery: 5, rate: 1.7, boss: 'hornetQueen', powers: { freeze: 2, blast: 1, rally: 1 }, pool: ['scoutHornet', 'armoredHornet', 'diveWasp', 'shieldHornet', 'hornetCaptain', 'hornetQueen'] }),
 ];
 
-export const BEE_SURVIVAL = level(0, { title: 'Endless Swarm', intro: 'No final wave. How long can your hive hold?', slots: 6, nectar: 175, sun: 175, waves: Infinity, flagEvery: 5, rate: 1.1, survival: true, pool: Object.keys(INVADERS) });
-export const getBeeLevel = (id) => BEE_LEVELS.find((item) => item.id === id) || BEE_LEVELS[0];
+export const BEE_SURVIVAL = level(0, { title: 'Endless Swarm', intro: 'No final wave. How long can your hive hold?', slots: 6, nectar: 175, sun: 175, waves: Infinity, flagEvery: 5, rate: 1.1, survival: true, powers: { freeze: 2, blast: 2, rally: 2 }, pool: Object.keys(INVADERS) });
 
 export function buildWave(levelData, waveNo, rng = Math.random) {
   const flag = levelData.flagEvery && waveNo % levelData.flagEvery === 0;

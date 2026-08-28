@@ -4,17 +4,33 @@
 let ctx = null;
 let master, sfxBus, musicBus, comp;
 const enabled = { sfx: true, music: true };
+// 0..1 from the settings sliders, scaled by the headroom each bus needs.
+const volume = { sfx: 0.8, music: 0.6 };
+const CEILING = { sfx: 1.15, music: 0.55 };
 let started = false;
+
+const busFor = (kind) => (kind === 'sfx' ? sfxBus : musicBus);
+const levelFor = (kind) => (enabled[kind] ? volume[kind] * CEILING[kind] : 0);
+
+function applyGain(kind, ramp = 0.06) {
+  const bus = busFor(kind);
+  if (ctx && bus) bus.gain.setTargetAtTime(levelFor(kind), ctx.currentTime, ramp);
+}
 
 export function setEnabled(kind, on) {
   enabled[kind] = on;
-  if (ctx) {
-    if (kind === 'sfx' && sfxBus) sfxBus.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05);
-    if (kind === 'music' && musicBus) musicBus.gain.setTargetAtTime(on ? 0.34 : 0, ctx.currentTime, 0.1);
-  }
+  applyGain(kind, kind === 'music' ? 0.1 : 0.05);
   if (kind === 'music' && !on) stopMusic();
 }
+
+/** @param level 0..1 from the settings slider. */
+export function setVolume(kind, level) {
+  volume[kind] = Math.max(0, Math.min(1, level));
+  applyGain(kind);
+}
+
 export const isEnabled = (kind) => enabled[kind];
+export const getVolume = (kind) => volume[kind];
 
 /** Must be called from a user gesture; safe to call repeatedly. */
 export function unlock() {
@@ -31,9 +47,9 @@ export function unlock() {
     master = ctx.createGain();
     master.gain.value = 0.9;
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = enabled.sfx ? 0.9 : 0;
+    sfxBus.gain.value = levelFor('sfx');
     musicBus = ctx.createGain();
-    musicBus.gain.value = enabled.music ? 0.34 : 0;
+    musicBus.gain.value = levelFor('music');
     sfxBus.connect(comp);
     musicBus.connect(comp);
     comp.connect(master);

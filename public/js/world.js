@@ -17,8 +17,9 @@ const front = (unit) => unit.x - (unit.def.big ? 46 : unit.def.small ? 18 : 28);
 const back = (unit) => unit.x + (unit.def.big ? 40 : unit.def.small ? 16 : 26);
 
 export class World {
-  constructor(level, loadout) {
+  constructor(level, loadout, opts = {}) {
     this.level = level;
+    this.reducedMotion = !!opts.reducedMotion;
     this.scene = SCENES[level.scene] || SCENES.day;
     this.L = L;
     this.loadout = loadout.slice();
@@ -64,13 +65,30 @@ export class World {
     this.stats = { killed: 0, sun: 0, planted: 0, food: 0, waves: 0 };
     this.lastLossRow = 2;
 
+    // Battle powers: a fixed handful of charges per level, so using one is a
+    // decision rather than a rotation.
+    this.powers = { ...(level.powers || { freeze: 1, blast: 1, rally: 1 }) };
+    this.powerArmed = null;
+
+    // The garden's weather. Gusts run with or against your shots, which makes
+    // the environment a tactic rather than a backdrop.
+    this.wind = { dir: 1, strength: 0, timer: rnd(14, 8), gust: 0 };
+    this.hasWind = level.environment === 'wind';
+
+    // Set while a boss is alive so the HUD can draw its health bar.
+    this.boss = null;
+
     if (level.graves) this.makeGraves(level.graves);
   }
 
   // -------------------------------------------------------------- helpers
 
   after(delay, fn) { this.timers.push({ t: delay, fn }); }
-  shake(mag = 10, dur = 0.35) { this.shakeMag = Math.max(this.shakeMag, mag); this.shakeT = Math.max(this.shakeT, dur); }
+  shake(mag = 10, dur = 0.35) {
+    if (this.reducedMotion) mag *= 0.18;
+    this.shakeMag = Math.max(this.shakeMag, mag);
+    this.shakeT = Math.max(this.shakeT, dur);
+  }
   flash(col, dur = 0.3) { this.flashCol = col; this.flashT = dur; }
   banner(text, dur = 2.6) { this.bannerText = text; this.bannerT = dur; }
 
@@ -276,6 +294,20 @@ export class World {
   spawnZombie(id, row, x, opts) {
     const z = makeInvader(id, row, x, opts);
     this.zombies.push(z);
+    if (z.def.boss) {
+      this.boss = z;
+      z.phase = 0;
+      z.summonT = 6;
+      z.relocCd = 11;
+      z.diveCd = 5;
+      z.speedMul = 1;
+      z.diving = 0;
+      z.relocT = 0;
+      this.banner(`${z.def.name} approaches`, 3.2);
+      this.flash('#ff6a4a', 0.5);
+      this.shake(20, 0.7);
+      sfx('huge');
+    }
     return z;
   }
 
@@ -311,6 +343,14 @@ export class World {
     z.dying = 0;
     z.hittable = false;
     this.stats.killed++;
+    if (z === this.boss) {
+      this.boss = null;
+      this.shake(26, 1);
+      this.flash('#fff0b0', 0.6);
+      for (let i = 0; i < 18; i++) {
+        this.after(i * 0.07, () => this.particles.boom(z.x + rnd(120, -120), z.y - rnd(160, 20)));
+      }
+    }
     sfx(z.def.big ? 'groanBig' : 'splat', 0.03);
     this.particles.splat(z.x - 10, z.y - 70, '#8fbf6a');
     if (z.def.big) { this.shake(14, 0.4); this.particles.dirt(z.x, z.y, 20); }
@@ -383,6 +423,7 @@ export class World {
     this.updateSuns(dt);
     this.updateFoods(dt);
     this.updateMowers(dt);
+    if (this.hasWind) this.updateWind(dt, live);
 
     if (live) {
       this.updateWaves(dt);
@@ -512,8 +553,16 @@ export class World {
         }
       }
 
+      if (z.def.boss && this.bossUpdate(z, dt)) continue;
+
       if (z.def.crusher) {
         if (blocking) {
+          // A diving boss ploughs straight through instead of stopping to swing.
+          if (z.diving > 0) {
+            this.shake(12, 0.25);
+            this.particles.crumbs(target.x, target.y - 40, '#6fce4e', 12);
+            this.kill(target);
+          } else {
           if (z.smash <= 0) { z.smash = 0.5; sfx('stomp', 0.2); }
           z.smash -= dt;
           if (z.smash <= 0.02) {
@@ -524,6 +573,7 @@ export class World {
             z.smash = 0;
           }
           continue;
+          }
         }
         z.smash = 0;
       } else if (blocking) {
@@ -545,13 +595,14 @@ export class World {
       }
 
       z.state = 'walk';
-      z.walkT += dt * slow * (z.speed / 26);
-      z.x -= z.speed * slow * dt;
+      const speed = z.speed * (z.speedMul || 1);
+      z.walkT += dt * slow * (speed / 26);
+      z.x -= speed * slow * dt;
 
       // gargantuar throws an imp over your defences
-      if (z.def.throwsImp && !z.thrown && z.hp < z.maxHp * 0.5) {
+      if (z.def.throwsImp && z.def.summons && !z.thrown && z.hp < z.maxHp * 0.5) {
         z.thrown = true;
-        const imp = this.spawnZombie('diveWasp', z.row, z.x, {});
+        const imp = this.spawnZombie(z.def.summons, z.row, z.x, {});
         imp.hittable = false;
         imp.fly = { t: 0, dur: 1.05, x0: z.x, x1: Math.max(L.gx + CELL_W * 0.7, z.x - CELL_W * 4.2), h: 210 };
         sfx('groanBig');
@@ -575,7 +626,7 @@ export class World {
     for (let i = this.peas.length - 1; i >= 0; i--) {
       const b = this.peas[i];
       b.t += dt;
-      b.x += b.vx * dt;
+      b.x += b.vx * (1 + this.wind.strength * this.wind.dir * 0.42) * dt;
       if (b.ty != null) b.y = lerp(b.y, b.ty, Math.min(1, dt * 7));
 
       // Emberwood sets peas alight as they pass through
@@ -754,6 +805,185 @@ export class World {
   }
 
   // ---------------------------------------------------------------- waves
+
+  // ------------------------------------------------------------ environment
+
+  /**
+   * Garden weather. A gust runs either with your shots or against them, so the
+   * lawn you are defending changes under you rather than just looking pretty.
+   */
+  updateWind(dt, live) {
+    const w = this.wind;
+    if (w.gust > 0) {
+      w.gust -= dt;
+      w.strength = Math.sin(clamp(1 - w.gust / w.gustDur, 0, 1) * Math.PI);
+      if (w.gust <= 0) { w.gust = 0; w.strength = 0; }
+    } else if (live) {
+      w.strength = 0;
+      w.timer -= dt;
+      if (w.timer <= 0) {
+        w.gustDur = rnd(6.5, 4);
+        w.gust = w.gustDur;
+        w.dir = Math.random() < 0.5 ? 1 : -1;
+        w.timer = rnd(21, 14);
+        this.banner(w.dir > 0 ? 'Tailwind — shots fly further' : 'Headwind — shots slow down', 2.2);
+        sfx('warn');
+      }
+    }
+    if (w.strength > 0.25 && !this.reducedMotion && Math.random() < 0.7) {
+      this.particles.add({
+        x: w.dir > 0 ? L.gx - 40 : L.gx + L.gw + 40,
+        y: L.gy + rnd(L.gh),
+        vx: w.dir * rnd(520, 240) * w.strength,
+        vy: rnd(30, -30), g: 6, drag: 0.4,
+        r: rnd(5, 2), color: 'rgba(255,240,170,.75)', life: rnd(1.4, 0.7), shrink: true,
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------- powers
+
+  /** @returns true if a charge was spent. */
+  usePower(id, wx, wy) {
+    if (!this.powers[id] || this.status !== 'playing') { sfx('err'); return false; }
+
+    if (id === 'freeze') {
+      for (const z of this.zombies) {
+        if (z.dead) continue;
+        this.chill(z, 7, true);
+        this.hurt(z, 40, 'ice');
+      }
+      this.particles.frost(L.gx, L.gy, L.gw, L.gh);
+      this.flash('#bfe9ff', 0.45);
+      sfx('freeze');
+      this.banner('Frozen', 1.4);
+    } else if (id === 'blast') {
+      const row = rowAt(wy);
+      if (!this.playableRow(row)) { sfx('err'); return false; }
+      for (let c = 0; c < COLS; c++) {
+        this.after(c * 0.05, () => this.particles.boom(cellCX(c), groundY(row) - 40));
+      }
+      for (const z of this.zombies) {
+        if (!z.dead && z.row === row) this.hurt(z, 1400, 'fire');
+      }
+      this.shake(18, 0.5);
+      sfx('explode');
+      this.banner('Blast', 1.4);
+    } else if (id === 'rally') {
+      for (const p of this.plants) {
+        p.hp = p.maxHp;
+        p.armorT = 14;
+        this.particles.sparkle(p.x, p.y - 50, '#9bffbd', 8);
+      }
+      this.particles.ring(L.gx + L.gw / 2, L.gy + L.gh / 2, 'rgba(155,255,189,.9)', 60, 6, 0.8);
+      sfx('food');
+      this.banner('Rally', 1.4);
+    } else {
+      return false;
+    }
+
+    this.powers[id]--;
+    this.powerArmed = null;
+    return true;
+  }
+
+  // ------------------------------------------------------------------ boss
+
+  /**
+   * Multi-phase boss behaviour. Returns true when it has taken the frame, so
+   * the ordinary walking and attacking is skipped.
+   *
+   * Phase 1  advances and summons.
+   * Phase 2  also lifts off and drops into a different lane.
+   * Phase 3  also charges the length of the lane, flattening what it hits.
+   */
+  bossUpdate(z, dt) {
+    const frac = Math.max(0, z.hp / z.maxHp);
+    const want = frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3;
+
+    if (want !== z.phase) {
+      const first = z.phase === 0;
+      z.phase = want;
+      z.phaseT = first ? 0.9 : 1.5;
+      z.hittable = false;
+      z.speedMul = 1;
+      z.diving = 0;
+      this.shake(22, 0.6);
+      this.flash('#ff8a5a', 0.4);
+      sfx('groanBig');
+      if (!first) this.banner(`${z.def.name} — phase ${want}`, 2.2);
+    }
+
+    // Roar between phases: airborne, untouchable, and not advancing.
+    if (z.phaseT > 0) {
+      z.phaseT -= dt;
+      z.bob = -Math.sin(clamp(1 - z.phaseT / 1.5, 0, 1) * Math.PI) * 70;
+      if (z.phaseT <= 0) { z.bob = 0; z.hittable = true; }
+      return true;
+    }
+
+    // Lane change.
+    if (z.relocT > 0) {
+      z.relocT -= dt;
+      const k = clamp(1 - z.relocT / 1.2, 0, 1);
+      z.y = lerp(z.relocY0, z.relocY1, k);
+      z.bob = -Math.sin(k * Math.PI) * 130;
+      if (k >= 0.5) z.row = z.relocRow;
+      if (z.relocT <= 0) { z.bob = 0; z.hittable = true; z.y = groundY(z.row); }
+      return true;
+    }
+
+    if (z.def.summons) {
+      z.summonT -= dt;
+      if (z.summonT <= 0) {
+        z.summonT = [0, 9, 7, 5.5][z.phase];
+        const minion = this.spawnZombie(z.def.summons, pick(this.rows), z.x, {});
+        minion.hittable = false;
+        minion.fly = {
+          t: 0, dur: 1.05, x0: z.x,
+          x1: Math.max(L.gx + CELL_W * 0.7, z.x - CELL_W * rnd(4.4, 2.2)),
+          h: 210,
+        };
+        sfx('groanBig');
+      }
+    }
+
+    if (z.phase >= 2) {
+      z.relocCd -= dt;
+      if (z.relocCd <= 0) {
+        const rows = this.rows.filter((r) => r !== z.row);
+        z.relocCd = 11;
+        if (rows.length) {
+          z.relocRow = pick(rows);
+          z.relocY0 = z.y;
+          z.relocY1 = groundY(z.relocRow);
+          z.relocT = 1.2;
+          z.hittable = false;
+          sfx('warn');
+          return true;
+        }
+      }
+    }
+
+    if (z.phase >= 3) {
+      if (z.diving > 0) {
+        z.diving -= dt;
+        z.speedMul = 4.6;
+        if (!this.reducedMotion && Math.random() < 0.5) this.particles.fire(z.x, z.y - 60, 2);
+        if (z.diving <= 0) z.speedMul = 1;
+      } else {
+        z.diveCd -= dt;
+        if (z.diveCd <= 0) {
+          z.diveCd = 7.5;
+          z.diving = 1.4;
+          this.shake(14, 0.3);
+          this.banner('Dive!', 1);
+          sfx('stomp');
+        }
+      }
+    }
+    return false;
+  }
 
   updateWaves(dt) {
     // trickle out the queued spawns

@@ -116,7 +116,7 @@ export const INVADERS = {
   diveWasp: invader('diveWasp', 'runt', { name: 'Dive Wasp', blurb: 'Tiny, fast and easily underestimated.', cost: 2 }, diveSpec),
   shieldHornet: invader('shieldHornet', 'shielded', { name: 'Shield Hornet', blurb: 'Blocks direct pollen shots.', cost: 4, shieldKind: 'shell' }, shieldSpec),
   hornetCaptain: invader('hornetCaptain', 'charger', { name: 'Hornet Captain', blurb: 'Gets faster when its armor breaks.', cost: 5 }, captainSpec),
-  hornetQueen: invader('hornetQueen', 'giant', { name: 'Hornet Queen', blurb: 'The towering queen of the hostile nest.', cost: 10, boss: true, throwsImp: true }, queenSpec),
+  hornetQueen: invader('hornetQueen', 'giant', { name: 'Hornet Queen', blurb: 'The towering queen of the hostile nest. Summons hornets, then relocates lanes, then dive-charges.', cost: 10, boss: true, throwsImp: true, summons: 'fastWasp' }, queenSpec),
 };
 
 export const INVADER_ORDER = ['scoutHornet', 'workerHornet', 'fastWasp', 'armoredHornet', 'diveWasp', 'shieldHornet', 'hornetCaptain', 'hornetQueen'];

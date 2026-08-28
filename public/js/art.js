@@ -28,13 +28,17 @@ export const ART_URLS = {
 
 const bank = new Map();
 
-export function preloadArt() {
+/** @param onProgress optional (loaded, total) callback for a loading screen. */
+export function preloadArt(onProgress) {
   if (typeof Image === 'undefined') return Promise.resolve([]);
-  return Promise.all(Object.entries(ART_URLS).map(([key, src]) => new Promise((resolve) => {
+  const entries = Object.entries(ART_URLS);
+  let loaded = 0;
+  const tick = () => onProgress?.(++loaded, entries.length);
+  return Promise.all(entries.map(([key, src]) => new Promise((resolve) => {
     const image = new Image();
     image.decoding = 'async';
-    image.onload = () => resolve(image);
-    image.onerror = () => resolve(null);
+    image.onload = () => { tick(); resolve(image); };
+    image.onerror = () => { tick(); resolve(null); };
     image.src = src;
     bank.set(key, image);
   })));

@@ -6,14 +6,19 @@ const storage = typeof localStorage === 'undefined'
 const defaults = () => ({
   version: 1,
   packs: { 'bees-hornets': { unlockedLevel: 1, levels: {}, loadouts: {} } },
-  settings: { music: true, sfx: true, reducedMotion: false },
+  settings: { music: true, sfx: true, musicVolume: 0.6, sfxVolume: 0.8, reducedMotion: false },
   stats: { wins: 0, enemiesDefeated: 0, defendersDeployed: 0, nectarCollected: 0, wavesCleared: 0, perfectVictories: 0 },
 });
 
 function read() {
   try {
     const parsed = JSON.parse(storage.getItem(SAVE_KEY));
-    if (parsed?.version === 1) return parsed;
+    if (parsed?.version === 1) {
+      // Merge in any settings added since this save was written, otherwise a
+      // returning player has no key for them and setSetting silently refuses.
+      parsed.settings = { ...defaults().settings, ...parsed.settings };
+      return parsed;
+    }
   } catch { /* A damaged save should never prevent the game from opening. */ }
   const fresh = defaults();
   const oldProgress = +storage.getItem('pyf-bees-progress') || +storage.getItem('pyf-progress') || 1;
@@ -32,6 +37,7 @@ export const SaveStore = {
   saveLoadout(id, ids) { bee().loadouts[id] = ids.slice(); commit(); },
   settings() { return { ...data.settings }; },
   setSetting(key, value) { if (key in data.settings) { data.settings[key] = value; commit(); } },
+  stats() { return { ...data.stats }; },
   recordWin(level, stats, stars) {
     const current = bee().levels[level.id] || { wins: 0, bestStars: 0 };
     current.wins += 1;

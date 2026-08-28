@@ -12,8 +12,6 @@ export const VH = 900;
 export const VW_MIN = 1440;
 export const VW_MAX = 2240;
 
-export const HUD_H = 128;
-
 const GRID_W = COLS * CELL_W; // 1188
 const GRID_H = ROWS * CELL_H; // 690
 const HOUSE_W = 218;          // porch + mower strip on the left

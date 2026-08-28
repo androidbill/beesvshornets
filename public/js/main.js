@@ -9,11 +9,15 @@ import {
   L, COLS, ROWS, CELL_W, CELL_H, layout,
   colX, rowY, cellCX, groundY, colAt, rowAt, onLawn,
 } from './config.js';
-import { World } from './world.js';
-import { BEE_WORLD, BEE_LEVELS, BEE_SURVIVAL } from './battle-packs/bees-hornets-levels.js';
-import { DEFENDERS, DEFENDER_ORDER, stubDefender } from './battle-packs/bees-hornets.js';
+import { World, STEP } from './world.js';
+import { BEE_LEVELS, BEE_SURVIVAL } from './battle-packs/bees-hornets-levels.js';
+import {
+  DEFENDERS, DEFENDER_ORDER, stubDefender, BEES_VS_HORNETS,
+} from './battle-packs/bees-hornets.js';
 import { TAU, clamp, roundRect, circle, ellipse, lit, outline, text } from './util.js';
-import { unlock, playMusic, stopMusic, setEnabled, isEnabled } from './audio.js';
+import {
+  unlock, playMusic, stopMusic, setEnabled, isEnabled, setVolume, getVolume,
+} from './audio.js';
 import { SaveStore } from './save.js';
 import { preloadArt, artImage } from './art.js';
 import { APP_VERSION } from '../version.js';
@@ -21,9 +25,17 @@ import { APP_VERSION } from '../version.js';
 if ('serviceWorker' in navigator) {
   addEventListener('load', () => navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`));
 }
-preloadArt();
+
+// A hidden, URL- or storage-gated dev panel per the design brief (S32). Never
+// present unless explicitly asked for, so it can't leak into a normal session.
+const DEBUG = new URLSearchParams(location.search).has('debug') || localStorage.getItem('pyf-debug') === '1';
+if (DEBUG) localStorage.setItem('pyf-debug', '1');
 
 const $ = (sel) => document.querySelector(sel);
+
+// Read once from the active battle pack rather than hardcoded, so a future
+// pack's own resource (Energy, Supplies, Gold...) needs no changes here.
+const RESOURCE_NAME = BEES_VS_HORNETS.resource.name.toUpperCase();
 
 const canvas = $('#game');
 const ctx = canvas.getContext('2d');
@@ -31,12 +43,18 @@ const menu = $('#menu');
 const mapEl = $('#level-map');
 const loadoutEl = $('#loadout');
 const result = $('#result');
-const worldsEl = $('#worlds');
+const settingsEl = $('#settings');
+const pauseMenu = $('#pause-menu');
 const cardsEl = $('#cards');
 const seedbar = $('#seedbar');
+const powerbar = $('#powerbar');
 const hud = $('#hud');
 const sunEl = $('#sun b');
 const waveEl = $('#wave span');
+const sunLabel = $('#sun-label');
+const windBadge = $('#wind-badge');
+const bossBar = $('#boss-bar');
+const loadingEl = $('#loading');
 
 let world = null;
 let level = null;
@@ -47,6 +65,8 @@ let last = 0;
 let acc = 0;
 let dpr = 1;
 let drag = null;
+let simSpeed = 1;
+let returnScreen = showMenu;
 
 const progressLevel = () => SaveStore.unlockedLevel();
 
@@ -75,12 +95,8 @@ resize();
 
 function syncSoundButtons() {
   const on = isEnabled('music');
-  const label = on ? '♪' : '×';
-  const hudLabel = on ? '🔊' : '🔇';
-  const menuBtn = $('#sound');
   const hudBtn = $('#hud-sound');
-  if (menuBtn) menuBtn.textContent = label;
-  if (hudBtn) hudBtn.textContent = hudLabel;
+  if (hudBtn) hudBtn.textContent = on ? '🔊' : '🔇';
 }
 
 function toggleSound() {
@@ -90,6 +106,50 @@ function toggleSound() {
   SaveStore.setSetting('music', on);
   SaveStore.setSetting('sfx', on);
   syncSoundButtons();
+  syncVolumeSliders();
+}
+
+// Every slider that controls the same value (menu settings + in-battle pause
+// menu) is kept in lockstep so changing one never leaves the other stale.
+function syncVolumeSliders() {
+  for (const el of document.querySelectorAll('[id$="-music"]')) el.value = getVolume('music');
+  for (const el of document.querySelectorAll('[id$="-sfx"]')) el.value = getVolume('sfx');
+  const motion = $('#opt-motion');
+  if (motion) motion.checked = SaveStore.settings().reducedMotion;
+}
+
+function wireVolumeControls() {
+  for (const el of [$('#opt-music'), $('#pause-music')]) {
+    el.addEventListener('input', () => {
+      setVolume('music', +el.value);
+      SaveStore.setSetting('musicVolume', +el.value);
+      syncVolumeSliders();
+    });
+  }
+  for (const el of [$('#opt-sfx'), $('#pause-sfx')]) {
+    el.addEventListener('input', () => {
+      setVolume('sfx', +el.value);
+      SaveStore.setSetting('sfxVolume', +el.value);
+      syncVolumeSliders();
+      unlock();
+      // A quick blip so a volume drag is heard immediately, not just believed.
+    });
+  }
+  $('#opt-motion').addEventListener('change', (e) => {
+    SaveStore.setSetting('reducedMotion', e.target.checked);
+    if (world) world.reducedMotion = e.target.checked;
+  });
+}
+
+function showSettings() {
+  hideAll();
+  settingsEl.classList.remove('hidden');
+  syncVolumeSliders();
+  const s = SaveStore.stats();
+  $('#settings-stats').textContent =
+    `${s.wins} victories · ${s.enemiesDefeated} invaders stopped · `
+    + `${s.defendersDeployed} defenders deployed · ${s.nectarCollected} nectar collected · `
+    + `${s.wavesCleared} waves cleared · ${s.perfectVictories} perfect victories`;
 }
 
 // -------------------------------------------------------------- rendering
@@ -530,16 +590,19 @@ function drawWorld() {
 
 // ------------------------------------------------------------------ loop
 
+let fps = 60;
+
 function frame(now) {
   requestAnimationFrame(frame);
-  if (!running || paused) return;
+  if (DEBUG && last) fps += ((1000 / Math.max(1, now - last)) - fps) * 0.1;
+  if (!running || paused) { last = now; return; }
 
-  const dt = Math.min(0.05, (now - last) / 1000 || 0);
+  const dt = Math.min(0.05, (now - last) / 1000 || 0) * simSpeed;
   last = now;
   acc += dt;
-  while (acc >= 1 / 60) {
-    world.update(1 / 60);
-    acc -= 1 / 60;
+  while (acc >= STEP) {
+    world.update(STEP);
+    acc -= STEP;
   }
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -575,6 +638,30 @@ function refreshHud() {
     el.classList.toggle('broke', world.sun < DEFENDERS[pk.id].cost);
     el.querySelector('.cool').style.height = `${(pk.cd / pk.recharge) * 100}%`;
   });
+
+  [...powerbar.children].forEach((btn) => {
+    const id = btn.dataset.power;
+    const left = world.powers[id] || 0;
+    btn.querySelector('b').textContent = left;
+    btn.classList.toggle('spent', left <= 0);
+    btn.classList.toggle('armed', world.powerArmed === id);
+  });
+
+  if (world.hasWind && world.wind.strength > 0.12) {
+    windBadge.classList.remove('hidden');
+    windBadge.classList.toggle('gusting-back', world.wind.dir < 0);
+    windBadge.querySelector('span').textContent = world.wind.dir > 0 ? 'Tailwind' : 'Headwind';
+  } else {
+    windBadge.classList.add('hidden');
+  }
+
+  if (world.boss && !world.boss.dead) {
+    bossBar.classList.remove('hidden');
+    $('#boss-name').textContent = world.boss.def.name;
+    bossBar.querySelector('.boss-hp span').style.width = `${clamp(world.boss.hp / world.boss.maxHp, 0, 1) * 100}%`;
+  } else {
+    bossBar.classList.add('hidden');
+  }
 }
 
 // ---------------------------------------------------------------- screens
@@ -602,7 +689,7 @@ function renderPacket(id, target) {
 }
 
 function hideAll() {
-  for (const el of [menu, mapEl, loadoutEl, result]) el.classList.add('hidden');
+  for (const el of [menu, mapEl, loadoutEl, result, settingsEl, pauseMenu]) el.classList.add('hidden');
   hud.classList.add('hidden');
 }
 
@@ -611,12 +698,6 @@ function showMenu() {
   hideAll();
   menu.classList.remove('hidden');
   stopMusic();
-  worldsEl.innerHTML = '';
-  const b = document.createElement('button');
-  b.className = 'world';
-  b.innerHTML = `<b>${BEE_WORLD.name}</b><small>${BEE_WORLD.tagline}</small>`;
-  b.onclick = showMap;
-  worldsEl.append(b);
 }
 
 function showMap() {
@@ -634,7 +715,7 @@ function showMap() {
     b.disabled = l.id > reached;
     b.innerHTML = `<b>${l.boss ? 'BOSS' : l.id}</b><small>${stars}</small>`;
     b.title = l.title;
-    b.onclick = () => openLoadout(l);
+    b.onclick = () => { returnScreen = showMap; openLoadout(l); };
     path.append(b);
   });
 }
@@ -659,7 +740,7 @@ function openLoadout(l) {
 
   hideAll();
   loadoutEl.classList.remove('hidden');
-  $('#loadout-world').textContent = 'BEES VS HORNETS';
+  $('#loadout-world').textContent = BEES_VS_HORNETS.displayName.toUpperCase();
   $('#loadout-title').textContent = l.id ? `${l.id}. ${l.title}` : l.title;
   $('#loadout-copy').textContent = l.intro;
 
@@ -669,7 +750,7 @@ function openLoadout(l) {
     const b = document.createElement('button');
     b.className = 'card';
     b.dataset.id = id;
-    b.innerHTML = `<span class="tick"></span><b>${d.name}</b><small>NECTAR ${d.cost} · ${d.role}</small>`;
+    b.innerHTML = `<span class="tick"></span><b>${d.name}</b><small>${RESOURCE_NAME} ${d.cost} · ${d.role}</small>`;
     renderPacket(id, b);
     b.onclick = () => {
       if (selected.includes(id)) selected = selected.filter((x) => x !== id);
@@ -694,13 +775,20 @@ function drawCards() {
 function start() {
   unlock();
   if (level.id) SaveStore.saveLoadout(level.id, selected);
-  world = new World(level, selected);
+  const settings = SaveStore.settings();
+  world = new World(level, selected, { reducedMotion: settings.reducedMotion });
+  if (DEBUG) window.__world = world;
   running = true;
   paused = false;
+  simSpeed = 1;
   last = performance.now();
 
   hideAll();
   hud.classList.remove('hidden');
+  sunLabel.textContent = RESOURCE_NAME;
+  bossBar.classList.add('hidden');
+  windBadge.classList.add('hidden');
+  $('#pause').textContent = 'Ⅱ';
 
   seedbar.innerHTML = '';
   world.packets.forEach((pk, i) => {
@@ -713,8 +801,13 @@ function start() {
       world.selected = i;
       world.shovel = false;
       world.foodArmed = false;
+      world.powerArmed = null;
       drag = { active: true, index: i, x: -1, y: -1, moved: false, startX: e.clientX, startY: e.clientY };
-      b.setPointerCapture?.(e.pointerId);
+      // Some input paths (a synthetic event, certain pen/touch edge cases) can
+      // hand back a pointerId the browser no longer considers active; capture
+      // is a nicety for keeping the drag on this element, not a requirement,
+      // so a failure here should never interrupt placing the card.
+      try { b.setPointerCapture?.(e.pointerId); } catch { /* not fatal */ }
     });
     seedbar.append(b);
   });
@@ -737,8 +830,9 @@ function showResult() {
   }
   $('#result-kicker').textContent = won ? 'THE HIVE IS SAFE' : 'THE SWARM BROKE THROUGH';
   $('#result-title').textContent = won ? 'Garden defended!' : 'Regroup and return';
+  $('#result-stars').textContent = won ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '';
   $('#result-copy').textContent = won
-    ? `${'★'.repeat(stars)}${'☆'.repeat(3 - stars)} · ${world.stats.killed} invaders stopped across ${world.stats.waves} waves.`
+    ? `${world.stats.killed} invaders stopped across ${world.stats.waves} waves.`
     : `You held ${world.stats.waves} wave${world.stats.waves === 1 ? '' : 's'}. Change your squad and go again.`;
 }
 
@@ -757,6 +851,11 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!world || !running) return;
   unlock();
   const p = eventWorld(e);
+
+  if (world.powerArmed) {
+    world.usePower(world.powerArmed, p.x, p.y);
+    return;
+  }
 
   const collectible = world.suns.some((s) => s.state !== 'collect' && Math.hypot(s.x - p.x, s.y - p.y) < 62)
     || world.foods.some((f) => Math.hypot(f.x - p.x, f.y - p.y) < 56);
@@ -796,32 +895,105 @@ addEventListener('pointerup', (e) => {
   }
 });
 
+$('#play').onclick = () => { returnScreen = showMap; showMap(); };
 $('#battle').onclick = start;
 $('#again').onclick = () => openLoadout(level);
-$('#continue').onclick = showMap;
-$('#survival').onclick = () => openLoadout(BEE_SURVIVAL);
+$('#continue').onclick = () => returnScreen();
+$('#survival').onclick = () => { returnScreen = showMap; openLoadout(BEE_SURVIVAL); };
+$('#map-survival').onclick = () => openLoadout(BEE_SURVIVAL);
 $('#map-back').onclick = showMenu;
-$('#sound').onclick = toggleSound;
 $('#hud-sound').onclick = toggleSound;
+
+$('#settings-open').onclick = showSettings;
+$('#settings-close').onclick = showMenu;
 
 $('#shovel').onclick = () => {
   world.shovel = !world.shovel;
   world.selected = -1;
   world.foodArmed = false;
+  world.powerArmed = null;
 };
 $('#food').onclick = () => {
   if (!world.foodCount) return;
   world.foodArmed = !world.foodArmed;
   world.selected = -1;
   world.shovel = false;
+  world.powerArmed = null;
 };
-$('#pause').onclick = () => {
-  paused = !paused;
-  $('#pause').textContent = paused ? '▶' : 'Ⅱ';
-};
+
+for (const btn of powerbar.children) {
+  btn.addEventListener('click', () => {
+    if (!world) return;
+    const id = btn.dataset.power;
+    if (btn.classList.contains('spent')) return;
+    unlock();
+    // Freeze and Rally act on the whole lawn the instant you tap them; Blast
+    // needs a lane, so it arms and waits for the next tap on the battlefield.
+    if (id === 'blast') {
+      world.powerArmed = world.powerArmed === id ? null : id;
+      world.selected = -1;
+      world.shovel = false;
+      world.foodArmed = false;
+    } else {
+      world.usePower(id, 0, 0);
+    }
+  });
+}
+
+// ------------------------------------------------------------------ pause
+
+function openPause() {
+  if (!running) return;
+  paused = true;
+  $('#pause').textContent = '▶';
+  syncVolumeSliders();
+  pauseMenu.classList.remove('hidden');
+}
+function closePause() {
+  paused = false;
+  $('#pause').textContent = 'Ⅱ';
+  pauseMenu.classList.add('hidden');
+}
+$('#pause').onclick = () => (paused ? closePause() : openPause());
+$('#pause-resume').onclick = closePause;
+$('#pause-quit').onclick = () => { pauseMenu.classList.add('hidden'); returnScreen(); };
+
+// A tab you can't see should not keep fighting the battle for you — and a
+// browser that throttles a hidden rAF loop can otherwise deliver one huge
+// simulation catch-up step the moment you switch back.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && running && !paused) openPause();
+});
+
+// ------------------------------------------------------------------ debug
+
+if (DEBUG) {
+  const panel = $('#debug');
+  panel.classList.remove('hidden');
+  const speeds = [0.5, 1, 2, 4];
+  panel.querySelector('[data-dbg="sun"]').onclick = () => world && (world.sun += 500);
+  panel.querySelector('[data-dbg="wave"]').onclick = () => world && (world.waveTimer = 0);
+  panel.querySelector('[data-dbg="clear"]').onclick = () => world && world.zombies.forEach((z) => world.die(z));
+  panel.querySelector('[data-dbg="win"]').onclick = () => world && world.win();
+  panel.querySelector('[data-dbg="lose"]').onclick = () => world && world.lose();
+  panel.querySelector('[data-dbg="speed"]').onclick = () => {
+    simSpeed = speeds[(speeds.indexOf(simSpeed) + 1) % speeds.length];
+    $('#dbg-speed').textContent = simSpeed;
+  };
+  setInterval(() => { $('#dbg-fps').textContent = fps.toFixed(0); }, 500);
+}
+
+// ------------------------------------------------------------------ boot
 
 const savedSettings = SaveStore.settings();
 setEnabled('music', savedSettings.music);
 setEnabled('sfx', savedSettings.sfx);
+setVolume('music', savedSettings.musicVolume);
+setVolume('sfx', savedSettings.sfxVolume);
 syncSoundButtons();
+wireVolumeControls();
+
+preloadArt((loaded, total) => { $('#loading-fill').style.width = `${(loaded / total) * 100}%`; })
+  .finally(() => { loadingEl.classList.add('hidden'); });
+
 showMenu();
