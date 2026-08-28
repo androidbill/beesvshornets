@@ -1,12 +1,13 @@
-// Every plant: what it costs, what it does, and how it is drawn. The art is all
-// procedural canvas so the same function paints the lawn, the seed packet and
-// the almanac entry.
+// The defender roles the engine knows how to run: what each costs, what it
+// does, and a procedural fallback drawing. A battle pack maps its own cast onto
+// these ids, so "producer" is the one that earns you resource whether that is a
+// sunflower, a nectar bee or a hospital fundraiser.
 
 import {
-  TAU, clamp, lerp, rnd, circle, ellipse, blob, leaf, roundRect,
-  outline, lit, ball, glint, eye, easeOutBack, easeOutElastic,
+  TAU, clamp, rnd, circle, ellipse, blob, leaf, outline, lit, ball, glint,
+  eye, easeOutBack, easeOutElastic,
 } from './util.js';
-import { CELL_W, CELL_H, cellCX, groundY, L } from './config.js';
+import { CELL_W, groundY, L } from './config.js';
 import { sfx } from './audio.js';
 
 const OUT = '#21361a';
@@ -111,11 +112,11 @@ function fire(p, w, dmg, kind, muzzleY) {
 
 // ==================================================================== plants
 
-export const PLANTS = {
+export const DEFENDER_ROLES = {
 
   // ------------------------------------------------------------- sunflower
-  sunflower: {
-    id: 'sunflower', name: 'Sunflower', cost: 50, recharge: 7.5, hp: 300,
+  producer: {
+    id: 'producer', name: 'Sunflower', cost: 50, recharge: 7.5, hp: 300,
     blurb: 'Grows sun. Plant these first — every other plant is paid for by them.',
     foodDesc: 'Bursts out five suns at once.',
     tag: 'Sun',
@@ -192,8 +193,8 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------ twin sun
-  twinsun: {
-    id: 'twinsun', name: 'Twin Sun', cost: 150, recharge: 22, hp: 300,
+  producer2: {
+    id: 'producer2', name: 'Twin Sun', cost: 150, recharge: 22, hp: 300,
     blurb: 'Two heads, twice the sun. The engine room of any long level.',
     foodDesc: 'Showers the lawn with eight suns.',
     tag: 'Sun',
@@ -251,8 +252,8 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------ peashooter
-  peashooter: {
-    id: 'peashooter', name: 'Peashooter', cost: 100, recharge: 5, hp: 300,
+  shooter: {
+    id: 'shooter', name: 'Peashooter', cost: 100, recharge: 5, hp: 300,
     blurb: 'Fires a pea down its lane. Cheap, reliable, always worth having.',
     foodDesc: 'Unloads sixty peas in three seconds.',
     tag: 'Attack',
@@ -304,8 +305,8 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------- frost pea
-  frostpea: {
-    id: 'frostpea', name: 'Frost Pea', cost: 175, recharge: 8, hp: 300,
+  chiller: {
+    id: 'chiller', name: 'Frost Pea', cost: 175, recharge: 8, hp: 300,
     blurb: 'Chilled peas slow whatever they hit by half for four seconds.',
     foodDesc: 'Freezes every zombie on the lawn solid.',
     tag: 'Attack',
@@ -345,8 +346,8 @@ export const PLANTS = {
   },
 
   // ----------------------------------------------------------- threepeater
-  threepeater: {
-    id: 'threepeater', name: 'Threepeater', cost: 325, recharge: 9, hp: 300,
+  trishot: {
+    id: 'trishot', name: 'Threepeater', cost: 325, recharge: 9, hp: 300,
     blurb: 'One plant, three lanes. Put it in the middle row and let it work.',
     foodDesc: 'Ninety peas across all three lanes.',
     tag: 'Attack',
@@ -407,8 +408,8 @@ export const PLANTS = {
   },
 
   // --------------------------------------------------------------- wall-nut
-  wallnut: {
-    id: 'wallnut', name: 'Wall Nut', cost: 50, recharge: 22, hp: 4000,
+  wall: {
+    id: 'wall', name: 'Wall Nut', cost: 50, recharge: 22, hp: 4000,
     blurb: 'Does nothing but soak. Buys the peashooters behind it a long time.',
     foodDesc: 'Heals to full and hardens — half damage for twenty seconds.',
     tag: 'Defence',
@@ -476,8 +477,8 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------ potato mine
-  potatomine: {
-    id: 'potatomine', name: 'Potato Mine', cost: 25, recharge: 22, hp: 300,
+  mine: {
+    id: 'mine', name: 'Potato Mine', cost: 25, recharge: 22, hp: 300,
     blurb: 'Cheap panic button. Takes fourteen seconds to arm, then deletes one zombie.',
     foodDesc: 'Arms instantly and blows a much bigger hole.',
     tag: 'Bomb',
@@ -557,8 +558,8 @@ export const PLANTS = {
   },
 
   // ----------------------------------------------------------- cherry bomb
-  cherrybomb: {
-    id: 'cherrybomb', name: 'Cherry Bomb', cost: 150, recharge: 30, hp: 4000,
+  bomb: {
+    id: 'bomb', name: 'Cherry Bomb', cost: 150, recharge: 30, hp: 4000,
     blurb: 'A three-by-three crater, one second after you plant it.',
     foodDesc: 'A five-by-five crater instead.',
     tag: 'Bomb',
@@ -626,8 +627,8 @@ export const PLANTS = {
   },
 
   // -------------------------------------------------------------- bonk choy
-  bonkchoy: {
-    id: 'bonkchoy', name: 'Bonk Choy', cost: 150, recharge: 8, hp: 320,
+  brawler: {
+    id: 'brawler', name: 'Bonk Choy', cost: 150, recharge: 8, hp: 320,
     blurb: 'Punches anything next to it, on both sides. Needs a wall in front.',
     foodDesc: 'A flurry that knocks the whole lane backwards.',
     tag: 'Melee',
@@ -697,8 +698,8 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------- spikeweed
-  spikeweed: {
-    id: 'spikeweed', name: 'Spikeweed', cost: 100, recharge: 7, hp: 300,
+  trap: {
+    id: 'trap', name: 'Spikeweed', cost: 100, recharge: 7, hp: 300,
     blurb: 'Sits flat. Zombies walk right over it and shred their feet.',
     foodDesc: 'Spikes erupt down the whole lane.',
     tag: 'Ground',
@@ -759,8 +760,8 @@ export const PLANTS = {
   },
 
   // --------------------------------------------------------------- chomper
-  chomper: {
-    id: 'chomper', name: 'Chomper', cost: 150, recharge: 9, hp: 340,
+  devourer: {
+    id: 'devourer', name: 'Chomper', cost: 150, recharge: 9, hp: 340,
     blurb: 'Swallows a zombie whole — then chews for twelve seconds, wide open.',
     foodDesc: 'Eats three zombies instantly and skips the chewing.',
     tag: 'Melee',
@@ -872,8 +873,10 @@ export const PLANTS = {
   },
 
   // ------------------------------------------------------------- emberwood
-  emberwood: {
-    id: 'emberwood', name: 'Emberwood', cost: 175, recharge: 9, hp: 300,
+  amplifier: {
+    id: 'amplifier', name: 'Emberwood', cost: 175, recharge: 9, hp: 300,
+    // Read by world.js: any friendly shot crossing this tile is upgraded.
+    amplifies: true,
     blurb: 'Sets fire to any pea that flies through it: double damage and splash.',
     foodDesc: 'Rolls a wall of fire down the lane.',
     tag: 'Support',
@@ -940,8 +943,8 @@ export const PLANTS = {
   },
 
   // ----------------------------------------------------------------- melon
-  melon: {
-    id: 'melon', name: 'Melon Lobber', cost: 300, recharge: 9, hp: 300,
+  lobber: {
+    id: 'lobber', name: 'Melon Lobber', cost: 300, recharge: 9, hp: 300,
     blurb: 'Lobs over walls and splashes the whole neighbourhood of the hit.',
     foodDesc: 'Rains melons across the entire lawn.',
     tag: 'Attack',
@@ -1009,35 +1012,13 @@ export const PLANTS = {
   },
 };
 
-/** Menu order — also the order plants unlock in. */
-export const PLANT_ORDER = [
-  'sunflower', 'peashooter', 'wallnut', 'potatomine', 'frostpea', 'cherrybomb',
-  'repeater', 'bonkchoy', 'twinsun', 'spikeweed', 'chomper', 'emberwood',
-  'threepeater', 'melon',
+/**
+ * Every defender role the engine knows how to run. A battle pack maps its own
+ * cast onto these ids; the behaviour, tuning and balance live here so a new
+ * matchup is names and artwork rather than new code.
+ */
+export const DEFENDER_ROLE_ORDER = [
+  'producer', 'shooter', 'wall', 'mine', 'chiller', 'bomb',
+  'repeater', 'brawler', 'producer2', 'trap', 'devourer', 'amplifier',
+  'trishot', 'lobber',
 ];
-
-export function makePlant(id, col, row) {
-  const def = PLANTS[id];
-  const p = {
-    def, id, col, row,
-    x: cellCX(col), y: groundY(row),
-    hp: def.hp, maxHp: def.hp,
-    cd: 0, t: 0, seed: Math.random(), blink: 1, blinkT: rnd(5, 1),
-    hurt: 0, wob: 0, armorT: 0, food: 0, born: 0, dead: false,
-    burst: 0, burstT: 0, flurry: 0,
-  };
-  def.place?.(p);
-  return p;
-}
-
-/** A throwaway plant used to paint packets and almanac pages. */
-export function stubPlant(id) {
-  const def = PLANTS[id];
-  const p = {
-    def, id, col: 0, row: 0, x: 0, y: 0, hp: def.hp, maxHp: def.hp,
-    cd: 99, t: 0, seed: 0.4, blink: 1, hurt: 0, wob: 0, armorT: 0,
-    arm: 0, armed: true, fuse: 1.05, chew: 0, bite: 0, glow: 0, hit: 0, flame: 0,
-    fireAnim: 0, dir: 1, punch: 0, burst: 0,
-  };
-  return p;
-}

@@ -26,7 +26,7 @@ export class World {
     this.time = 0;
     this.status = 'intro';        // intro | playing | won | lost
     this.statusT = 3.2;
-    this.sun = 5000; // testing mode: generous starting resource
+    this.sun = level.nectar ?? level.sun ?? 50;
     this.plants = [];
     this.grid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
     this.zombies = [];
@@ -168,7 +168,7 @@ export class World {
       if (pk.cd > 0 || this.sun < DEFENDERS[pk.id].cost) { sfx('err'); return false; }
       this.place(pk.id, col, row);
       this.sun -= DEFENDERS[pk.id].cost;
-      pk.cd = 0;
+      pk.cd = pk.recharge;
       this.selected = -1;
       return true;
     }
@@ -181,15 +181,13 @@ export class World {
     plant.col = col; plant.row = row; plant.x = cellCX(col); plant.y = groundY(row);
     this.grid[row][col] = plant;
     this.particles.ring(plant.x, plant.y - 42, '#ffe27a', 18, 3, .35);
-    sfx('click');
+    sfx('tap');
     return true;
   }
 
   collectSun(s) {
     if (s.state === 'collect') return;
     s.state = 'collect';
-    this.sun += s.value;
-    this.suns.splice(this.suns.indexOf(s), 1);
     s.collectT = 0;
     s.collectX = s.x;
     s.collectY = s.y;
@@ -584,7 +582,7 @@ export class World {
       if (b.kind === 'pea') {
         const c = colAt(b.x);
         const p = this.plantAt(c, b.row);
-        if (p && p.id === 'emberwood' && !b.lit.has(p)) {
+        if (p && p.def.amplifies && !b.lit.has(p)) {
           b.lit.add(p);
           b.kind = 'fire';
           b.dmg *= 2;

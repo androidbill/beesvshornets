@@ -34,7 +34,7 @@ body { background: #102a22; }
 #menu::before,
 #result::before,
 #loadout::before {
-  background: url('./assets/art/backgrounds/title-hero-v4.png') center / cover no-repeat;
+  background: url('./assets/art/backgrounds/title-hero.webp') center / cover no-repeat;
   transform: scale(1.012);
 }
 
@@ -293,6 +293,7 @@ footer {
 #sun,
 #shovel,
 #food,
+#hud-sound,
 #pause {
   border: 2px solid rgba(255, 235, 156, .4);
   background: linear-gradient(180deg, rgba(39, 76, 55, .96), rgba(14, 42, 30, .96));
@@ -333,6 +334,11 @@ footer {
 #shovel { top: 20px; right: 130px; }
 #food { top: 20px; right: 72px; }
 #pause { top: 20px; right: 18px; }
+#hud-sound { top: 20px; right: 188px; }
+
+/* A packet you cannot currently afford reads as unavailable rather than broken. */
+.seed.broke { filter: grayscale(.55) brightness(.82); }
+.seed.broke small { background: #4a4438; color: #cbc3a8; }
 
 #wave {
   bottom: 20px;

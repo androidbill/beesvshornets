@@ -1,7 +1,7 @@
 const ROOT = './assets/art/';
 
 export const ART_URLS = {
-  titleHero: `${ROOT}backgrounds/title-hero-v4.png`,
+  titleHero: `${ROOT}backgrounds/title-hero.webp`,
   battlefield: `${ROOT}backgrounds/bloom-battlefield.webp`,
   levelMap: `${ROOT}backgrounds/bloom-map.webp`,
   nectarBee: `${ROOT}defenders/nectar-bee.webp`,

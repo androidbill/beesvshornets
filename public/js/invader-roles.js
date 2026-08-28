@@ -1,10 +1,11 @@
-// The other half of the lawn. Each zombie is a stat block plus a draw call;
-// the walking, eating and dying are shared and live in world.js.
+// The invader roles: a stat block plus a fallback drawing each. The walking,
+// eating and dying are shared and live in world.js, so a pack only supplies
+// names, art and tuning.
 
 import {
-  TAU, clamp, rnd, circle, ellipse, blob, roundRect, outline, lit, ball, glint, eye,
+  clamp, circle, ellipse, blob, roundRect, outline, lit, ball, glint, eye,
 } from './util.js';
-import { CELL_W, groundY } from './config.js';
+
 import { sfx } from './audio.js';
 
 const SKIN = ['#9fd07a', '#6ba24d'];
@@ -223,16 +224,16 @@ function shieldDoor(ctx, dmg, kind) {
 
 // ------------------------------------------------------------------ roster
 
-export const ZOMBIES = {
+export const INVADER_ROLES = {
 
-  shambler: {
-    id: 'shambler', name: 'Shambler', hp: 200, speed: 26, dps: 55, cost: 1,
+  grunt: {
+    id: 'grunt', name: 'Shambler', hp: 200, speed: 26, dps: 55, cost: 1,
     blurb: 'The standard issue. Slow, dim, and never alone.',
     draw(ctx, z, t) { legs(ctx, z, t); torso(ctx, z); arms(ctx, z, t); head(ctx, z, t); },
   },
 
-  cone: {
-    id: 'cone', name: 'Cone Head', hp: 200, armor: 340, speed: 26, dps: 55, cost: 2,
+  armored: {
+    id: 'armored', name: 'Cone Head', hp: 200, armor: 340, speed: 26, dps: 55, cost: 2,
     blurb: 'Found a traffic cone. Takes about three times the peas.',
     draw(ctx, z, t) {
       legs(ctx, z, t); torso(ctx, z, ['#6b7f5f', '#4a5b41']); arms(ctx, z, t); head(ctx, z, t, { hair: false });
@@ -240,8 +241,8 @@ export const ZOMBIES = {
     },
   },
 
-  bucket: {
-    id: 'bucket', name: 'Bucket Head', hp: 200, armor: 900, speed: 25, dps: 55, cost: 4,
+  armored2: {
+    id: 'armored2', name: 'Bucket Head', hp: 200, armor: 900, speed: 25, dps: 55, cost: 4,
     blurb: 'A steel pail beats a traffic cone. Bring something explosive.',
     draw(ctx, z, t) {
       legs(ctx, z, t); torso(ctx, z, ['#7b6f8f', '#554b66']); arms(ctx, z, t); head(ctx, z, t, { hair: false });
@@ -249,8 +250,8 @@ export const ZOMBIES = {
     },
   },
 
-  flag: {
-    id: 'flag', name: 'Flag Bearer', hp: 200, speed: 34, dps: 55, cost: 1,
+  leader: {
+    id: 'leader', name: 'Flag Bearer', hp: 200, speed: 34, dps: 55, cost: 1,
     blurb: 'Leads a wave in. Where there is one, there are twenty behind.',
     draw(ctx, z, t) {
       // flag first, behind the body
@@ -274,8 +275,8 @@ export const ZOMBIES = {
     },
   },
 
-  screendoor: {
-    id: 'screendoor', name: 'Screen Door', hp: 220, shield: 780, speed: 22, dps: 55, cost: 4,
+  shielded: {
+    id: 'shielded', name: 'Screen Door', hp: 220, shield: 780, speed: 22, dps: 55, cost: 4,
     blurb: 'Peas bounce off the door. Lob over it, burn it, or hit it from behind.',
     shieldKind: 'door',
     draw(ctx, z, t) {
@@ -285,8 +286,8 @@ export const ZOMBIES = {
     },
   },
 
-  tabloid: {
-    id: 'tabloid', name: 'Tabloid', hp: 200, shield: 320, speed: 22, dps: 62, cost: 3,
+  rager: {
+    id: 'rager', name: 'Tabloid', hp: 200, shield: 320, speed: 22, dps: 62, cost: 3,
     blurb: 'Reading the paper. Shred it and he gets very, very angry.',
     shieldKind: 'paper',
     onShieldBreak(z, w) {
@@ -311,8 +312,8 @@ export const ZOMBIES = {
     },
   },
 
-  polevault: {
-    id: 'polevault', name: 'Pole Vaulter', hp: 360, speed: 40, dps: 55, cost: 3,
+  vaulter: {
+    id: 'vaulter', name: 'Pole Vaulter', hp: 360, speed: 40, dps: 55, cost: 3,
     blurb: 'Jumps clean over your first plant. Whatever is second had better be good.',
     vault: true,
     draw(ctx, z, t) {
@@ -332,8 +333,8 @@ export const ZOMBIES = {
     },
   },
 
-  imp: {
-    id: 'imp', name: 'Imp', hp: 140, speed: 54, dps: 40, cost: 1,
+  runt: {
+    id: 'runt', name: 'Imp', hp: 140, speed: 54, dps: 40, cost: 1,
     small: true,
     blurb: 'Small, quick, and often arrives by air.',
     draw(ctx, z, t) {
@@ -348,8 +349,8 @@ export const ZOMBIES = {
     },
   },
 
-  linebacker: {
-    id: 'linebacker', name: 'Linebacker', hp: 340, armor: 1100, speed: 58, dps: 100, cost: 6,
+  charger: {
+    id: 'charger', name: 'Linebacker', hp: 340, armor: 1100, speed: 58, dps: 100, cost: 6,
     blurb: 'Fast and armoured. Slow him down or he is through the line.',
     draw(ctx, z, t) {
       legs(ctx, z, t, 1.4);
@@ -389,8 +390,8 @@ export const ZOMBIES = {
     },
   },
 
-  gargantuar: {
-    id: 'gargantuar', name: 'Gargantuar', hp: 3200, speed: 20, dps: 0, cost: 12,
+  giant: {
+    id: 'giant', name: 'Gargantuar', hp: 3200, speed: 20, dps: 0, cost: 12,
     crusher: true, big: true, throwsImp: true,
     blurb: 'Does not eat plants. Flattens them. Halfway down it throws an Imp at your back line.',
     draw(ctx, z, t) {
@@ -439,46 +440,8 @@ export const ZOMBIES = {
   },
 };
 
-export const ZOMBIE_ORDER = [
-  'shambler', 'flag', 'cone', 'bucket', 'polevault', 'tabloid',
-  'screendoor', 'imp', 'linebacker', 'gargantuar',
+/** Every invader role the engine knows how to run. See defender-roles.js. */
+export const INVADER_ROLE_ORDER = [
+  'grunt', 'leader', 'armored', 'armored2', 'vaulter', 'rager',
+  'shielded', 'runt', 'charger', 'giant',
 ];
-
-export function makeZombie(id, row, x, opts = {}) {
-  const def = ZOMBIES[id];
-  const z = {
-    def, id, row, x, y: groundY(row),
-    hp: def.hp, maxHp: def.hp,
-    armorHp: def.armor || 0,
-    shieldHp: def.shield || 0,
-    speed: def.speed,
-    state: 'walk', walkT: rnd(6), seed: Math.random(),
-    blink: 1, blinkT: rnd(5, 1),
-    chill: 0, frozen: 0, burn: 0, knock: 0, hurtT: 0,
-    dead: false, dying: 0, hittable: true,
-    eatT: 0, target: null, vaulted: false, rage: 0, smash: 0,
-    carriesFood: !!opts.carriesFood, thrown: false, bob: 0,
-    ...opts,
-  };
-  return z;
-}
-
-/** Stub for the almanac. */
-export function stubZombie(id) {
-  const def = ZOMBIES[id];
-  return {
-    def, id, row: 0, x: 0, y: 0, hp: def.hp, maxHp: def.hp,
-    armorHp: def.armor || 0, shieldHp: def.shield || 0,
-    speed: def.speed, state: 'walk', walkT: 1.1, seed: 0.3, blink: 1,
-    chill: 0, frozen: 0, burn: 0, knock: 0, hurtT: 0, dead: false,
-    rage: 0, smash: 0, vaulted: false, carriesFood: false,
-  };
-}
-
-export const ZOMBIE_HEIGHT = 150;
-export const ZOMBIE_HALF = 30;
-export const front = (z) => z.x - (z.def.big ? 46 : z.def.small ? 18 : 28);
-export const back = (z) => z.x + (z.def.big ? 40 : z.def.small ? 16 : 26);
-export const CELL = CELL_W;
-export const TAU_ = TAU;
-export const ellipse_ = ellipse;

@@ -2,8 +2,8 @@
 // The combat callbacks currently adapt the proven prototype simulation while
 // all identity, tuning, art and progression live here as replaceable content.
 
-import { PLANTS as LEGACY_DEFENDERS } from '../plants.js';
-import { ZOMBIES as LEGACY_INVADERS } from '../zombies.js';
+import { DEFENDER_ROLES } from '../defender-roles.js';
+import { INVADER_ROLES } from '../invader-roles.js';
 import { drawCreature } from '../creature.js';
 import { cellCX, groundY } from '../config.js';
 import { rnd } from '../util.js';
@@ -52,7 +52,7 @@ function paintInvader(spec) {
 }
 
 const defender = (id, legacyId, meta, spec, extra = {}) => ({
-  ...LEGACY_DEFENDERS[legacyId], id, theme: 'bees-hornets', rarity: meta.rarity || 'common',
+  ...DEFENDER_ROLES[legacyId], id, theme: 'bees-hornets', rarity: meta.rarity || 'common',
   unlockRequirement: meta.unlockRequirement || 1, animationSet: 'winged', soundSet: 'bee',
   ...meta, ...extra, draw: paintDefender(spec),
 });
@@ -67,7 +67,7 @@ const bomberSpec = withParts(beeBody(['#f8c84a', '#b97620']), { p: 'carry', styl
 const royalSpec = withParts(beeBody(['#fff08b', '#d89722'], 1.12), { p: 'hat', style: 'crown', y: -112 }, { p: 'emitter', style: 'cannon', x: 30, y: -65, s: .85, fill: ['#f3d873', '#95611c'] }, { p: 'aura', y: -64, r: 82, color: '#ffe270', a: .2 });
 
 export const DEFENDERS = {
-  nectarBee: defender('nectarBee', 'sunflower', { name: 'Nectar Bee', description: 'Gathers nectar that funds the whole hive.', blurb: 'Produces 25 Nectar every 11 seconds.', role: 'Generator', cost: 50, rarity: 'common' }, nectarSpec, {
+  nectarBee: defender('nectarBee', 'producer', { name: 'Nectar Bee', description: 'Gathers nectar that funds the whole hive.', blurb: 'Produces 25 Nectar every 11 seconds.', role: 'Generator', cost: 50, rarity: 'common' }, nectarSpec, {
     place(p) { p.cd = 3.5; },
     update(p, dt, w) {
       p.cd -= dt;
@@ -79,22 +79,22 @@ export const DEFENDERS = {
       w.particles.ring(p.x, p.y - 60, 'rgba(255,220,86,.9)', 24, 2.8, .5);
     },
   }),
-  workerBee: defender('workerBee', 'peashooter', { name: 'Worker Bee', description: 'A dependable pollen-shot attacker.', blurb: 'Reliable ranged damage in one lane.', role: 'Attacker', cost: 100, rarity: 'common', muzzleX: 47, muzzleY: -50 }, workerSpec),
-  bumbleGuard: defender('bumbleGuard', 'wallnut', { name: 'Bumble Guard', description: 'A fluffy wall with a stubborn streak.', blurb: 'Soaks up damage and protects the row.', role: 'Tank', cost: 75, rarity: 'common', unlockRequirement: 2 }, bumbleSpec),
-  guardBee: defender('guardBee', 'bonkchoy', { name: 'Guard Bee', description: 'Swats anything that enters its airspace.', blurb: 'Devastating at close range.', role: 'Brawler', cost: 150, rarity: 'uncommon', unlockRequirement: 3 }, guardSpec),
+  workerBee: defender('workerBee', 'shooter', { name: 'Worker Bee', description: 'A dependable pollen-shot attacker.', blurb: 'Reliable ranged damage in one lane.', role: 'Attacker', cost: 100, rarity: 'common', muzzleX: 47, muzzleY: -50 }, workerSpec),
+  bumbleGuard: defender('bumbleGuard', 'wall', { name: 'Bumble Guard', description: 'A fluffy wall with a stubborn streak.', blurb: 'Soaks up damage and protects the row.', role: 'Tank', cost: 75, rarity: 'common', unlockRequirement: 2 }, bumbleSpec),
+  guardBee: defender('guardBee', 'brawler', { name: 'Guard Bee', description: 'Swats anything that enters its airspace.', blurb: 'Devastating at close range.', role: 'Brawler', cost: 150, rarity: 'uncommon', unlockRequirement: 3 }, guardSpec),
   stingerBee: defender('stingerBee', 'repeater', { name: 'Stinger Bee', description: 'Fires paired royal-jelly darts.', blurb: 'Fast double-shot ranged attacker.', role: 'Rapid', cost: 200, rarity: 'uncommon', unlockRequirement: 3 }, stingerSpec),
-  honeyHealer: defender('honeyHealer', 'sunflower', { name: 'Honey Healer', description: 'Restores nearby hive defenders.', blurb: 'Heals its row instead of gathering.', role: 'Support', cost: 125, recharge: 10, rarity: 'rare', unlockRequirement: 4 }, healerSpec, {
+  honeyHealer: defender('honeyHealer', 'producer', { name: 'Honey Healer', description: 'Restores nearby hive defenders.', blurb: 'Heals its row instead of gathering.', role: 'Support', cost: 125, recharge: 10, rarity: 'rare', unlockRequirement: 4 }, healerSpec, {
     place(p) { p.cd = 5; },
     update(p, dt, w) { p.cd -= dt; if (p.cd > 0) return; p.cd = 9; for (const ally of w.plants) if (ally.row === p.row && Math.abs(ally.col - p.col) <= 2) ally.hp = Math.min(ally.maxHp, ally.hp + 65); w.particles.sparkle(p.x, p.y - 55, '#9bffbd', 12); },
   }),
-  pollenBomber: defender('pollenBomber', 'cherrybomb', { name: 'Pollen Bomber', description: 'Drops a volatile pollen charge.', blurb: 'One-use blast across nearby lanes.', role: 'Area Blast', cost: 150, rarity: 'rare', unlockRequirement: 5 }, bomberSpec),
-  royalDefender: defender('royalDefender', 'melon', { name: 'Royal Defender', description: 'Lobs heavy honeycombs into clustered enemies.', blurb: 'Slow, powerful splash damage.', role: 'Heavy', cost: 300, rarity: 'epic', unlockRequirement: 6 }, royalSpec),
+  pollenBomber: defender('pollenBomber', 'bomb', { name: 'Pollen Bomber', description: 'Drops a volatile pollen charge.', blurb: 'One-use blast across nearby lanes.', role: 'Area Blast', cost: 150, rarity: 'rare', unlockRequirement: 5 }, bomberSpec),
+  royalDefender: defender('royalDefender', 'lobber', { name: 'Royal Defender', description: 'Lobs heavy honeycombs into clustered enemies.', blurb: 'Slow, powerful splash damage.', role: 'Heavy', cost: 300, rarity: 'epic', unlockRequirement: 6 }, royalSpec),
 };
 
 export const DEFENDER_ORDER = ['nectarBee', 'workerBee', 'bumbleGuard', 'guardBee', 'stingerBee', 'honeyHealer', 'pollenBomber', 'royalDefender'];
 
 const invader = (id, legacyId, meta, spec, extra = {}) => ({
-  ...LEGACY_INVADERS[legacyId], id, theme: 'bees-hornets', soundSet: 'hornet', ...meta, ...extra, draw: paintInvader(spec),
+  ...INVADER_ROLES[legacyId], id, theme: 'bees-hornets', soundSet: 'hornet', ...meta, ...extra, draw: paintInvader(spec),
 });
 const scoutSpec = hornetBody();
 const workerHornetSpec = withParts(hornetBody(['#f0a82f', '#95501a']), { p: 'emitter', style: 'stinger', x: 28, y: -62, s: .75, fill: ['#d7bb6a', '#5c391b'] });
@@ -106,17 +106,17 @@ const captainSpec = withParts(hornetBody(['#e8922b', '#73351a'], 1.12), { p: 'ca
 const queenSpec = withParts(hornetBody(['#f2a62e', '#783719'], 1.48), { p: 'hat', style: 'crown', y: -113 }, { p: 'carry', style: 'club', x: 22, y: -98, fill: ['#7c4b27', '#3d2213'] }, { p: 'aura', y: -67, r: 90, color: '#e44d42', a: .2 });
 
 export const INVADERS = {
-  scoutHornet: invader('scoutHornet', 'shambler', { name: 'Scout Hornet', blurb: 'A steady frontline intruder.', cost: 1 }, scoutSpec),
-  workerHornet: invader('workerHornet', 'flag', {
+  scoutHornet: invader('scoutHornet', 'grunt', { name: 'Scout Hornet', blurb: 'A steady frontline intruder.', cost: 1 }, scoutSpec),
+  workerHornet: invader('workerHornet', 'leader', {
     name: 'Worker Hornet', blurb: 'Stops to fire venom darts from a distance.', cost: 1,
     ranged: true, range: 470, attackRate: 2.6, projectileDamage: 34, projectileSpeed: 430, projectileMuzzleX: -52, projectileMuzzleY: -52,
   }, workerHornetSpec),
-  fastWasp: invader('fastWasp', 'polevault', { name: 'Fast Wasp', blurb: 'Dashes over the first blocker.', cost: 2 }, fastSpec),
-  armoredHornet: invader('armoredHornet', 'cone', { name: 'Armored Hornet', blurb: 'Wears scavenged beetle-shell armor.', cost: 2 }, armorSpec),
-  diveWasp: invader('diveWasp', 'imp', { name: 'Dive Wasp', blurb: 'Tiny, fast and easily underestimated.', cost: 2 }, diveSpec),
-  shieldHornet: invader('shieldHornet', 'screendoor', { name: 'Shield Hornet', blurb: 'Blocks direct pollen shots.', cost: 4, shieldKind: 'shell' }, shieldSpec),
-  hornetCaptain: invader('hornetCaptain', 'linebacker', { name: 'Hornet Captain', blurb: 'Gets faster when its armor breaks.', cost: 5 }, captainSpec),
-  hornetQueen: invader('hornetQueen', 'gargantuar', { name: 'Hornet Queen', blurb: 'The towering queen of the hostile nest.', cost: 10, boss: true, throwsImp: true }, queenSpec),
+  fastWasp: invader('fastWasp', 'vaulter', { name: 'Fast Wasp', blurb: 'Dashes over the first blocker.', cost: 2 }, fastSpec),
+  armoredHornet: invader('armoredHornet', 'armored', { name: 'Armored Hornet', blurb: 'Wears scavenged beetle-shell armor.', cost: 2 }, armorSpec),
+  diveWasp: invader('diveWasp', 'runt', { name: 'Dive Wasp', blurb: 'Tiny, fast and easily underestimated.', cost: 2 }, diveSpec),
+  shieldHornet: invader('shieldHornet', 'shielded', { name: 'Shield Hornet', blurb: 'Blocks direct pollen shots.', cost: 4, shieldKind: 'shell' }, shieldSpec),
+  hornetCaptain: invader('hornetCaptain', 'charger', { name: 'Hornet Captain', blurb: 'Gets faster when its armor breaks.', cost: 5 }, captainSpec),
+  hornetQueen: invader('hornetQueen', 'giant', { name: 'Hornet Queen', blurb: 'The towering queen of the hostile nest.', cost: 10, boss: true, throwsImp: true }, queenSpec),
 };
 
 export const INVADER_ORDER = ['scoutHornet', 'workerHornet', 'fastWasp', 'armoredHornet', 'diveWasp', 'shieldHornet', 'hornetCaptain', 'hornetQueen'];

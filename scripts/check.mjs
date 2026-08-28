@@ -1,33 +1,49 @@
 // Import every game module so a syntax error or a bad import shows up here
-// instead of as a blank screen on Bill's phone. main.js is skipped: it is the
-// only module that touches the DOM at import time.
+// instead of as a blank screen on a phone. main.js is parse-checked only: it is
+// the one module that touches the DOM at import time.
 import { readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { join, resolve } from 'node:path';
+import { join, resolve, relative } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
-const dir = resolve(process.cwd(), 'public/js');
+const root = resolve(process.cwd(), 'public/js');
 const skip = new Set(['main.js']);
+
+function walk(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (entry.name.endsWith('.js')) out.push(full);
+  }
+  return out;
+}
+
 let bad = 0;
-for (const f of readdirSync(dir).filter((f) => f.endsWith('.js')).sort()) {
-  if (skip.has(f)) continue;
+for (const file of walk(root)) {
+  const label = relative(root, file).replace(/\\/g, '/');
+  if (skip.has(label)) continue;
   try {
-    const m = await import(pathToFileURL(join(dir, f)).href);
-    console.log(`  ok  ${f.padEnd(14)} ${Object.keys(m).length} exports`);
+    const mod = await import(pathToFileURL(file).href);
+    console.log(`  ok  ${label.padEnd(38)} ${Object.keys(mod).length} exports`);
   } catch (e) {
     bad++;
-    console.log(`FAIL  ${f}\n      ${e.message}`);
+    console.log(`FAIL  ${label}\n      ${e.message}`);
   }
 }
-// main.js only gets a parse check — running it would need a browser.
-const { execFileSync } = await import('node:child_process');
+
 try {
+  const url = JSON.stringify(pathToFileURL(join(root, 'main.js')).href);
   execFileSync(process.execPath, ['--input-type=module', '-e',
-    `import(${JSON.stringify(pathToFileURL(join(dir, 'main.js')).href)}).catch(e=>{
-       if (!/document|window|navigator|not defined/i.test(String(e))) { console.error(e); process.exit(1); }
+    `import(${url}).catch((e) => {
+       if (!/document|window|navigator|matchMedia|is not defined/i.test(String(e))) {
+         console.error(e); process.exit(1);
+       }
      })`], { stdio: 'pipe' });
-  console.log('  ok  main.js       (parsed)');
+  console.log('  ok  main.js                                (parsed)');
 } catch (e) {
   bad++;
-  console.log('FAIL  main.js\n     ', String(e.stderr || e.message).slice(0, 600));
+  console.log('FAIL  main.js\n', String(e.stderr || e.message).slice(0, 800));
 }
+
 process.exit(bad ? 1 : 0);
