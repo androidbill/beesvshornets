@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Bees vs Hornets</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=alpha.01.02.04">
-  <link rel="stylesheet" href="premium.css?v=alpha.01.02.04">
+  <link rel="stylesheet" href="style.css?v=alpha.01.02.08">
+  <link rel="stylesheet" href="premium.css?v=alpha.01.02.08">
 </head>
 <body>
   <main id="app">
@@ -90,11 +90,13 @@
     </section>
 
     <div id="hud" class="hidden">
-      <div id="seedbar"></div>
-      <div id="powerbar">
-        <button class="power" data-power="freeze" title="Freeze — chills every invader">❄ <b>1</b></button>
-        <button class="power" data-power="blast" title="Blast — burns one lane">💥 <b>1</b></button>
-        <button class="power" data-power="rally" title="Rally — heals and shields the hive">✚ <b>1</b></button>
+      <div id="hud-left">
+        <div id="seedbar"></div>
+        <div id="powerbar">
+          <button class="power" data-power="freeze" title="Freeze — chills every invader">❄ <b>1</b></button>
+          <button class="power" data-power="blast" title="Blast — burns one lane">💥 <b>1</b></button>
+          <button class="power" data-power="rally" title="Rally — heals and shields the hive">✚ <b>1</b></button>
+        </div>
       </div>
       <div id="hud-right">
         <button id="shovel" title="Recall defender">↶</button>
@@ -140,6 +142,6 @@
 
     <div id="turn" class="hidden">Rotate your device<br><small>Bees vs Hornets is made for landscape.</small></div>
   </main>
-  <script type="module" src="js/main.js?v=alpha.01.02.04"></script>
+  <script type="module" src="js/main.js?v=alpha.01.02.08"></script>
 </body>
 </html>

@@ -10,7 +10,14 @@ body { background: #102a22; }
 
 .panel {
   isolation: isolate;
-  overflow: hidden;
+  overflow-x: hidden;
+  /* Vertical scroll as the default safety net, not an opt-in per screen: a
+     landscape phone is short, and content that doesn't fit under
+     justify-content:center overflows both edges equally rather than
+     clipping - on a page with overflow:hidden on html/body, that silently
+     put the loadout screen's Start Battle button and the settings screen's
+     Back button below the fold with no way to reach them. */
+  overflow-y: auto;
 }
 
 .panel::before {
@@ -214,7 +221,19 @@ button:hover { filter: brightness(1.08) saturate(1.08); }
 .level-node:nth-child(5) { left: 64%; top: 57%; }
 .level-node:nth-child(6) { left: 76.4%; top: 45.5%; }
 
-#map-back { position: absolute; z-index: 3; left: 28px; bottom: 24px; }
+/* Both corners, not centre-flow: the level path's nodes are positioned by
+   percentage over the illustrated map, tuned for a wide aspect ratio. A
+   button sitting in normal flow under the heading drifts down into that
+   artwork at a narrower viewport and collides with whichever nodes happen
+   to fall in the middle band - a fixed corner never can. */
+#map-back,
+#map-survival {
+  position: absolute;
+  z-index: 3;
+  bottom: max(24px, env(safe-area-inset-bottom));
+}
+#map-back { left: max(28px, env(safe-area-inset-left)); }
+#map-survival { right: max(28px, env(safe-area-inset-right)); }
 
 /* Loadout and result glass panels */
 #loadout::after,
@@ -223,14 +242,29 @@ button:hover { filter: brightness(1.08) saturate(1.08); }
   backdrop-filter: blur(10px) saturate(.8);
 }
 
-#loadout { padding: clamp(18px, 3vw, 36px); }
+/* justify-content:flex-start (not the .panel default of centered) plus
+   min-height:0 on the scrolling child is what makes the card grid able to
+   shrink and scroll inside a flex column instead of overflowing top and
+   bottom equally, which is what centering did: on a short landscape phone
+   with 6-8 cards, that pushed the Start Battle button off-screen entirely,
+   below the html/body overflow:hidden - unreachable, not just unseen. */
+#loadout {
+  justify-content: flex-start;
+  padding: clamp(12px, 3vw, 36px);
+  height: 100%;
+}
 #loadout h2, #result h2 { color: #fff9dc; text-shadow: 0 4px 0 #29402c, 0 9px 26px #06170f; }
 #loadout-copy { margin: 8px 0 16px; color: #e5f4df; }
 
 .cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: flex-start;
   grid-template-columns: repeat(4, minmax(122px, 164px));
   gap: 12px;
   max-width: 740px;
+  padding: 4px;
 }
 
 .card {
@@ -265,9 +299,23 @@ footer {
 #result-copy { max-width: 660px; color: #eff8e7; }
 
 /* Premium battle HUD */
+/* #hud-left is the positioned anchor; #seedbar and #powerbar stack inside it
+   in normal flow, so powerbar always lands below however tall the seed row
+   actually is (2 slots or 8, one row or wrapped) instead of at a guessed
+   pixel offset. That guess is exactly what overlapped them at a narrower
+   viewport than they were ever checked at. */
+#hud-left {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
 #seedbar {
-  top: 12px;
-  left: 18px;
   gap: 8px;
   padding: 8px;
   border: 2px solid rgba(255, 231, 149, .42);
@@ -292,11 +340,13 @@ footer {
 
 #hud-right {
   position: absolute;
-  top: 12px;
-  right: 16px;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
   z-index: 4;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   pointer-events: auto;
 }
@@ -345,10 +395,6 @@ footer {
 /* Battle powers: a second row under the seed cards. Charges are scarce enough
    that each button doubles as a readout of what is left. */
 #powerbar {
-  position: absolute;
-  top: 108px;
-  left: 18px;
-  z-index: 3;
   display: flex;
   gap: 8px;
   pointer-events: auto;
@@ -412,7 +458,7 @@ footer {
 /* Boss health, top-centre and hard to miss. */
 #boss-bar {
   position: absolute;
-  top: 12px;
+  top: max(12px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
@@ -446,12 +492,23 @@ footer {
 
 @media (max-width: 900px) {
   #hud-right { gap: 6px; }
-  #powerbar { top: 96px; }
   .power { width: 46px; height: 46px; font-size: 18px; }
 }
 
+/* Landscape phones are short, not narrow — this is the constraint that
+   actually bites on a phone held sideways, where max-width rarely triggers. */
+@media (max-height: 420px) {
+  #hud-left, #hud-right { gap: 5px; }
+  #seedbar { padding: 5px; gap: 5px; }
+  .seed { width: 58px; height: 70px; }
+  .seed canvas { width: 52px; height: 42px; }
+  .power { width: 40px; height: 40px; font-size: 16px; }
+  #sun { min-height: 42px; padding: 4px 8px; }
+  #shovel, #food, #hud-sound, #pause { padding: 6px 9px; }
+}
+
 #wave {
-  bottom: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   height: 16px;
   border: 2px solid rgba(255, 241, 179, .54);
   background: rgba(13, 40, 28, .84);
@@ -510,7 +567,19 @@ footer {
 .loading p { font-size: 14px; letter-spacing: .04em; color: #d8ede1; }
 
 /* Settings + pause panels reuse .panel but need a narrower reading column. */
-#settings, #pause-menu { background: #1c4534; }
+/* .panel's own overflow:hidden (it clips the decorative ::before/::after art
+   layers) also blocked these two from ever scrolling, so on a short
+   landscape phone the achievement grid could push the Back button below the
+   fold with no way to reach it - same class of bug as the loadout screen's
+   card grid, fixed the same way: stop centering the block as a whole and let
+   it scroll instead. */
+#settings, #pause-menu {
+  background: #1c4534;
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
 .settings-list { width: min(420px, 88vw); display: flex; flex-direction: column; gap: 16px; margin: 10px 0 20px; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-weight: 800; color: #eef8e6; }
 .setting-row input[type="range"] { width: 200px; accent-color: #ffd45f; }
@@ -571,8 +640,8 @@ footer {
 #debug {
   position: fixed;
   z-index: 40;
-  bottom: 10px;
-  right: 10px;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  right: max(10px, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   gap: 4px;
