@@ -507,6 +507,14 @@ footer {
   #hud-right { gap: 6px; }
   .power { width: 46px; height: 46px; font-size: 18px; }
 }
+@media (max-width: 600px) {
+  #hud-left { transform: scale(.72); transform-origin: top left; }
+  #hud-right { transform: scale(.82); transform-origin: top right; }
+  #seedbar { gap: 5px; padding: 5px; }
+  .seed { width: 62px; height: 74px; }
+  .seed canvas { width: 56px; height: 48px; }
+  #powerbar { gap: 5px; }
+}
 
 /* Landscape phones are short, not narrow — this is the constraint that
    actually bites on a phone held sideways, where max-width rarely triggers. */
