@@ -3,7 +3,7 @@
 // previous hand-maintained CACHE constant had already drifted two builds behind
 // APP_VERSION, and a name that fails to change serves stale JS forever.
 const VERSION = new URL(self.location).searchParams.get('v') || 'dev';
-const CACHE = `pick-your-fight-${VERSION}`;
+const CACHE = `beesvshornets-${VERSION}`;
 
 const CORE = [
   './', './index.html', './style.css', './premium.css',

@@ -1142,4 +1142,5 @@ buildTrackPicker();
 preloadArt((loaded, total) => { $('#loading-fill').style.width = `${(loaded / total) * 100}%`; })
   .finally(() => { loadingEl.classList.add('hidden'); });
 
+$('#app-version').textContent = APP_VERSION;
 showMenu();

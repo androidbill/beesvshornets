@@ -51,6 +51,18 @@ body { background: #102a22; }
   background: #255b47;
 }
 
+#app-version {
+  position: absolute;
+  z-index: 2;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: rgba(255, 246, 216, .55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+  pointer-events: none;
+}
+
 #menu::after {
   background:
     radial-gradient(ellipse at 50% 43%, rgba(18, 48, 35, .14) 0 23%, rgba(10, 29, 22, .04) 45%, rgba(7, 20, 16, .35) 100%),

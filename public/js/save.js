@@ -1,6 +1,6 @@
 import { checkAchievements } from './achievements.js';
 
-const SAVE_KEY = 'pick-your-fight-save-v1';
+const SAVE_KEY = 'beesvshornets-save-v1';
 const LAST_LEVEL = 6; // BEE_LEVELS.length — kept as a constant rather than an
                        // import so this module has no dependency on a pack.
 

@@ -9,7 +9,7 @@ The engine underneath separates generic roles from the cast that plays them
 (see below), so a second matchup stays cheap to add later if that changes -
 but for now this is the one game.
 
-- Live: https://androidbill.github.io/pick-your-fight/
+- Live: https://androidbill.github.io/beesvshornets/
 - Static PWA, no build step. Everything ships from `public/`.
 - `node scripts/check.mjs` imports every module to catch a syntax error before it
   becomes a blank screen on a phone.
