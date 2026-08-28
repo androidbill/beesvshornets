@@ -160,11 +160,7 @@ if (!touchDevice) {
 // but it only works from a real user gesture, so it rides on the buttons
 // that already start something rather than firing on load.
 function goFullscreen() {
-  if (!touchDevice || document.fullscreenElement) return;
-  document.documentElement.requestFullscreen?.().catch(() => {
-    // Denied, unsupported, or already showing a native picker - the game
-    // still works perfectly well without it, just with the status bar up.
-  });
+  // Use the PWA's normal display mode; explicit fullscreen triggers intrusive OS instructions.
 }
 
 function resize() {
@@ -1101,7 +1097,7 @@ for (const btn of powerbar.children) {
 
 // ------------------------------------------------------------------ pause
 const gameMenu = $('#game-menu'), about = $('#about');
-$('#game-menu-btn').onclick = () => gameMenu.classList.toggle('hidden');
+$('#game-menu-btn').style.pointerEvents='auto'; $('#game-menu-btn').onclick = () => gameMenu.classList.toggle('hidden');
 $('#game-refresh').onclick = () => location.reload();
 $('#game-share').onclick = async () => { try { await navigator.share({ title:'Bees vs Hornets', url:location.href }); } catch {} };
 $('#game-about').onclick = () => { gameMenu.classList.add('hidden'); if (running) openPause(); $('#about-version').textContent = APP_VERSION; about.classList.remove('hidden'); };
