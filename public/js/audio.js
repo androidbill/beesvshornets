@@ -1,5 +1,7 @@
-// All sound is synthesised — no audio files ship with the game, so the whole
-// thing installs in a couple of hundred kilobytes and works offline instantly.
+// Sound effects are synthesised — no files, installs instantly, works offline.
+// Background music is three real tracks (public/assets/audio/), routed through
+// the same gain bus as everything else so one set of volume controls covers
+// both.
 
 let ctx = null;
 let master, sfxBus, musicBus, comp;
@@ -252,103 +254,68 @@ export function sfx(name, throttle = 0) {
 
 // ----------------------------------------------------------------- music
 
-const SONGS = {
-  day: {
-    bpm: 116,
-    chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],
-    bass: [33, 29, 24, 31],
-    lead: [
-      [69, -1, 72, -1, 76, -1, 72, -1, 69, -1, 67, -1, 69, -1, -1, -1],
-      [69, -1, 65, -1, 69, -1, 72, -1, 77, -1, -1, 76, -1, 72, -1, -1],
-      [76, -1, 72, -1, 67, -1, 64, -1, 67, -1, 72, -1, 76, -1, -1, -1],
-      [74, -1, 71, -1, 74, -1, 79, -1, 78, -1, 76, -1, -1, -1, -1, -1],
-    ],
-    leadType: 'triangle', bright: 2600,
-  },
-  night: {
-    bpm: 92,
-    chords: [[57, 60, 63], [55, 58, 62], [53, 56, 60], [52, 56, 59]],
-    bass: [33, 31, 29, 28],
-    lead: [
-      [69, -1, -1, 68, -1, -1, 69, -1, 72, -1, -1, -1, 71, -1, -1, -1],
-      [-1, -1, 67, -1, 70, -1, -1, 69, -1, -1, 67, -1, -1, -1, -1, -1],
-      [65, -1, -1, 68, -1, 69, -1, -1, 72, -1, 71, -1, -1, -1, -1, -1],
-      [64, -1, -1, -1, 67, -1, 64, -1, 63, -1, -1, -1, -1, -1, -1, -1],
-    ],
-    leadType: 'sine', bright: 1500,
-  },
-  dusk: {
-    bpm: 128,
-    chords: [[57, 61, 64], [55, 59, 62], [53, 57, 60], [56, 60, 63]],
-    bass: [33, 31, 29, 32],
-    lead: [
-      [73, -1, 76, -1, 81, -1, 76, -1, 73, -1, 76, -1, 80, -1, -1, -1],
-      [74, -1, 71, -1, 74, -1, 79, -1, 78, -1, -1, 74, -1, -1, -1, -1],
-      [72, -1, 76, -1, 79, -1, 76, -1, 72, -1, 69, -1, 72, -1, -1, -1],
-      [75, -1, 72, -1, 75, -1, 80, -1, 79, -1, 77, -1, -1, -1, -1, -1],
-    ],
-    leadType: 'sawtooth', bright: 2000,
-  },
-};
+export const MUSIC_TRACKS = [
+  { id: 'music-01', name: 'Track 01', file: 'music-01.mp3' },
+  { id: 'music-02', name: 'Track 02', file: 'music-02.mp3' },
+  { id: 'music-03', name: 'Track 03', file: 'music-03.mp3' },
+];
+const DEFAULT_TRACK = 'music-01';
 
-const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+let musicEl = null;
+let musicSource = null;
+let currentTrack = DEFAULT_TRACK;
+let wantPlaying = false;
 
-let musicTimer = null;
-let song = null;
-let step = 0;
-let nextTime = 0;
-let intensity = 0;
+function trackUrl(id) {
+  const t = MUSIC_TRACKS.find((x) => x.id === id) || MUSIC_TRACKS[0];
+  return `./assets/audio/${t.file}`;
+}
 
-/** 0 = calm opening, 1 = the huge wave. Drives volume and hi-hats. */
-export function setIntensity(v) { intensity = Math.max(0, Math.min(1, v)); }
+/** Built lazily inside unlock() — a MediaElementAudioSourceNode needs a live AudioContext. */
+function ensureMusicElement() {
+  if (musicEl) return;
+  musicEl = new Audio();
+  musicEl.loop = true;
+  musicEl.preload = 'auto';
+  musicEl.crossOrigin = 'anonymous';
+  musicSource = ctx.createMediaElementSource(musicEl);
+  musicSource.connect(musicBus);
+}
 
-export function playMusic(name = 'day') {
-  const next = SONGS[name] || SONGS.day;
-  if (!ctx || !enabled.music) { song = next; return; }
-  if (musicTimer && song === next) return;
-  stopMusic();
-  song = next;
-  step = 0;
-  nextTime = ctx.currentTime + 0.1;
-  musicTimer = setInterval(schedule, 26);
+/** @returns the currently selected track id. */
+export function getTrack() { return currentTrack; }
+
+/**
+ * Switches the selected track. Safe to call before the AudioContext exists —
+ * the choice is remembered and takes effect once playMusic() actually runs
+ * from a user gesture, same as everything else in here.
+ */
+export function setTrack(id) {
+  if (!MUSIC_TRACKS.some((t) => t.id === id)) return;
+  currentTrack = id;
+  if (!musicEl) return;
+  const playingNow = wantPlaying && !musicEl.paused;
+  musicEl.src = trackUrl(id);
+  if (playingNow) musicEl.play().catch(() => {});
+}
+
+export function playMusic() {
+  wantPlaying = true;
+  if (!ctx || !enabled.music) return;
+  ensureMusicElement();
+  if (!musicEl.src) musicEl.src = trackUrl(currentTrack);
+  musicEl.play().catch(() => {});
 }
 
 export function stopMusic() {
-  if (musicTimer) clearInterval(musicTimer);
-  musicTimer = null;
+  wantPlaying = false;
+  musicEl?.pause();
 }
 
-function schedule() {
-  if (!ctx || !song) return;
-  const stepDur = 60 / song.bpm / 4;
-  while (nextTime < ctx.currentTime + 0.18) {
-    playStep(step, nextTime, stepDur);
-    step = (step + 1) % 64;
-    nextTime += stepDur;
-  }
-}
-
-function playStep(i, t, dur) {
-  const bar = (i >> 4) & 3;
-  const s = i & 15;
-  const at = t - ctx.currentTime;
-  if (at < -0.05) return;
-  const hot = 0.55 + intensity * 0.75;
-
-  if (s % 2 === 0) {
-    const n = song.bass[bar] + (s % 8 === 4 ? 7 : 0);
-    tone(musicBus, { freq: midi(n), type: 'triangle', gain: 0.4 * hot, at, d: dur * 1.1, r: dur * 0.7, cutoff: 420, q: 2 });
-  }
-  if (s % 4 === 2) {
-    song.chords[bar].forEach((n, k) =>
-      tone(musicBus, { freq: midi(n), type: 'square', gain: 0.075 * hot, at, d: dur * 0.7, r: dur * 1.1, cutoff: 1100, pan: (k - 1) * 0.35 }));
-  }
-  const n = song.lead[bar][s];
-  if (n > 0) {
-    tone(musicBus, { freq: midi(n), type: song.leadType, gain: 0.2 * hot, at, d: dur * 1.4, r: dur * 1.6, cutoff: song.bright });
-    tone(musicBus, { freq: midi(n + 12), type: 'sine', gain: 0.05 * hot, at, d: dur, r: dur });
-  }
-  if (s % 8 === 0) noise(musicBus, { gain: 0.26 * hot, cutoff: 220, to: 60, d: 0.1, r: 0.08 });
-  if (s % 8 === 4) noise(musicBus, { gain: 0.14 * hot, cutoff: 3000, to: 1200, d: 0.07, r: 0.06, type: 'highpass' });
-  if (intensity > 0.4 && s % 2 === 1) noise(musicBus, { gain: 0.035 * hot, cutoff: 7000, d: 0.03, r: 0.03, type: 'highpass' });
-}
+/**
+ * Kept as a no-op export: the old synthesised score modulated its own
+ * intensity from wave pressure. Real tracks don't have a knob for that, but
+ * world.js still calls this every frame - a real function costs nothing and
+ * means that call site never needed to change.
+ */
+export function setIntensity() {}

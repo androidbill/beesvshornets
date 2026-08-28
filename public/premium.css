@@ -584,6 +584,25 @@ footer {
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-weight: 800; color: #eef8e6; }
 .setting-row input[type="range"] { width: 200px; accent-color: #ffd45f; }
 .toggle-row input[type="checkbox"] { width: 22px; height: 22px; accent-color: #ffd45f; }
+
+.track-picker { display: flex; gap: 6px; }
+.track-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 244, 187, .3);
+  background: rgba(12, 43, 30, .6);
+  color: #cfe6d5;
+  box-shadow: none;
+  text-shadow: none;
+}
+.track-btn:hover { border-color: rgba(255, 244, 187, .55); }
+.track-btn.active {
+  border-color: #ffd95d;
+  background: linear-gradient(180deg, #fff19a, #f0b532);
+  color: #2a301c;
+  box-shadow: 0 0 14px rgba(255, 217, 93, .35);
+}
 .settings-stats { max-width: 480px; color: #cfe6d5; font-size: 13px; line-height: 1.7; }
 
 #pause-menu { z-index: 6; }

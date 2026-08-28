@@ -17,6 +17,7 @@ import {
 import { TAU, clamp, roundRect, circle, ellipse, lit, outline, text } from './util.js';
 import {
   unlock, playMusic, stopMusic, setEnabled, isEnabled, setVolume, getVolume,
+  MUSIC_TRACKS, setTrack, getTrack,
 } from './audio.js';
 import { SaveStore } from './save.js';
 import { ACHIEVEMENTS } from './achievements.js';
@@ -119,6 +120,35 @@ function syncVolumeSliders() {
   if (motion) motion.checked = SaveStore.settings().reducedMotion;
   const contrast = $('#opt-contrast');
   if (contrast) contrast.checked = SaveStore.settings().highContrast;
+  syncTrackPicker();
+}
+
+function syncTrackPicker() {
+  const picker = $('#track-picker');
+  if (!picker) return;
+  const current = getTrack();
+  [...picker.children].forEach((btn) => btn.classList.toggle('active', btn.dataset.track === current));
+}
+
+/** Built once at boot — three fixed tracks, nothing dynamic about the list. */
+function buildTrackPicker() {
+  const picker = $('#track-picker');
+  if (!picker) return;
+  picker.innerHTML = '';
+  MUSIC_TRACKS.forEach((t) => {
+    const btn = document.createElement('button');
+    btn.className = 'track-btn';
+    btn.dataset.track = t.id;
+    btn.textContent = t.name;
+    btn.addEventListener('click', () => {
+      setTrack(t.id);
+      SaveStore.setSetting('musicTrack', t.id);
+      unlock();
+      syncTrackPicker();
+    });
+    picker.append(btn);
+  });
+  syncTrackPicker();
 }
 
 /** Applies immediately so toggling it doesn't need a screen change to see it. */
@@ -836,7 +866,7 @@ function start() {
     seedbar.append(b);
   });
 
-  playMusic(world.scene.music);
+  playMusic();
 }
 
 function showResult() {
@@ -1034,9 +1064,11 @@ setEnabled('music', savedSettings.music);
 setEnabled('sfx', savedSettings.sfx);
 setVolume('music', savedSettings.musicVolume);
 setVolume('sfx', savedSettings.sfxVolume);
+setTrack(savedSettings.musicTrack);
 applyContrast(savedSettings.highContrast);
 syncSoundButtons();
 wireVolumeControls();
+buildTrackPicker();
 
 preloadArt((loaded, total) => { $('#loading-fill').style.width = `${(loaded / total) * 100}%`; })
   .finally(() => { loadingEl.classList.add('hidden'); });

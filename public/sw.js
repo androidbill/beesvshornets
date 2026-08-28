@@ -43,6 +43,13 @@ const ART = [
   'effects/venom-dart.webp',
 ].map((f) => `./assets/art/${f}`);
 
+// Only the default track is precached. The other two are multi-megabyte
+// files most players will never pick - they cache themselves the normal way
+// (the fetch handler below caches any successful GET) the first time someone
+// actually switches to one, rather than costing every install 3.7MB nobody
+// asked for.
+const AUDIO_DEFAULT = ['./assets/audio/music-01.mp3'];
+
 // Precache file by file rather than with addAll(). addAll() is atomic: one 404
 // or one dropped request on a phone's connection rejects the whole install and
 // the game silently ends up with no offline cache at all. cache:'reload' stops
@@ -50,7 +57,7 @@ const ART = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) => Promise.all(
-      [...CORE, ...ART].map((url) => fetch(url, { cache: 'reload' })
+      [...CORE, ...ART, ...AUDIO_DEFAULT].map((url) => fetch(url, { cache: 'reload' })
         .then((res) => (res && res.ok ? cache.put(url, res) : null))
         .catch(() => null)),
     )).then(() => self.skipWaiting()),
@@ -69,10 +76,19 @@ self.addEventListener('activate', (event) => {
 // deploy can never be served from the previous build's cache.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // <audio> elements issue byte-range requests (Chrome does this even on a
+  // plain, non-seeking play()). A 206 Partial Content response cached under
+  // the full URL would answer every later request for that file - including
+  // full-file ones - with just that one slice, breaking playback. Range
+  // requests are only ever answered from network, never written to cache.
+  if (event.request.headers.has('range')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request)
       .then((res) => {
-        if (res && res.ok && res.type === 'basic') {
+        if (res && res.ok && res.status !== 206 && res.type === 'basic') {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         }
