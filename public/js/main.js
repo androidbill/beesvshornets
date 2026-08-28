@@ -1100,6 +1100,13 @@ for (const btn of powerbar.children) {
 }
 
 // ------------------------------------------------------------------ pause
+const gameMenu = $('#game-menu'), about = $('#about');
+$('#game-menu-btn').onclick = () => gameMenu.classList.toggle('hidden');
+$('#game-refresh').onclick = () => location.reload();
+$('#game-share').onclick = async () => { try { await navigator.share({ title:'Bees vs Hornets', url:location.href }); } catch {} };
+$('#game-about').onclick = () => { gameMenu.classList.add('hidden'); if (running) openPause(); $('#about-version').textContent = APP_VERSION; about.classList.remove('hidden'); };
+$('#game-exit').onclick = () => { gameMenu.classList.add('hidden'); if (running) closePause(); returnScreen(); };
+$('#about-close').onclick = () => about.classList.add('hidden');
 
 function openPause() {
   if (!running) return;
