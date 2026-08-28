@@ -10,6 +10,10 @@ No unit levelling. What you plant on wave one is exactly as strong on wave twent
 - Static PWA, no build step. Everything ships from `public/`.
 - `node scripts/check.mjs` imports every module to catch a syntax error before it
   becomes a blank screen on a phone.
+- `node scripts/bot-tournament.mjs [runsPerLevel]` plays every campaign level
+  and Survival headlessly with a simple heuristic bot, through the real rules
+  (real costs, cooldowns, wave budgets) — a sanity check on the numbers, not a
+  substitute for actually playing it.
 
 ## How a matchup is built
 

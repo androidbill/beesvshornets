@@ -24,7 +24,12 @@ export function buildWave(levelData, waveNo, rng = Math.random) {
   const flag = levelData.flagEvery && waveNo % levelData.flagEvery === 0;
   const final = Number.isFinite(levelData.waves) && waveNo === levelData.waves;
   const growth = levelData.survival ? 2.2 + waveNo * 1.25 + Math.pow(waveNo, 1.5) * .14 : 1.5 + (waveNo - 1) * 1.15;
-  let budget = growth * levelData.rate * (flag ? 1.75 : 1) * (final ? 2.7 : 1);
+  // A bot playthrough of every level (scripts/bot-tournament.mjs) found levels
+  // 5-6 collapsing consistently at the wave-8 flag spike, well before the
+  // final wave even hit: the flag and final multipliers were compounding on
+  // top of an already-climbing base budget faster than a built-up board could
+  // absorb. Softened from 1.75/2.7 - still a real spike, not a wall.
+  let budget = growth * levelData.rate * (flag ? 1.5 : 1) * (final ? 2.3 : 1);
   const unlockAt = { fastWasp: 2, armoredHornet: 3, shieldHornet: 4, hornetCaptain: 5, hornetQueen: levelData.waves || 8 };
   let pool = levelData.pool.filter((id) => waveNo >= (unlockAt[id] || 1) || levelData.survival);
   if (final && levelData.boss) pool = pool.filter((id) => id !== levelData.boss);
