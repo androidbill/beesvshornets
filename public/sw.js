@@ -94,8 +94,9 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(event.request));
     return;
   }
+  const appAsset = /\/(?:index\.html|main\.js|art\.js|world\.js|style\.css|premium\.css|manifest\.webmanifest|version\.js)(?:\?|$)/.test(new URL(event.request.url).pathname + new URL(event.request.url).search);
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)
+    (appAsset ? fetch(event.request, { cache: 'no-store' }).then((res) => { if (res?.ok) caches.open(CACHE).then((cache) => cache.put(event.request, res.clone())); return res; }).catch(() => caches.match(event.request)) : caches.match(event.request).then((cached) => cached || fetch(event.request))
       .then((res) => {
         if (res && res.ok && res.status !== 206 && res.type === 'basic') {
           const copy = res.clone();
