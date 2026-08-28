@@ -12,7 +12,7 @@ const storage = typeof localStorage === 'undefined'
 const defaults = () => ({
   version: 1,
   packs: { 'bees-hornets': { unlockedLevel: 1, levels: {}, loadouts: {} } },
-  settings: { music: true, sfx: true, musicVolume: 0.6, sfxVolume: 0.8, reducedMotion: false },
+  settings: { music: true, sfx: true, musicVolume: 0.6, sfxVolume: 0.8, reducedMotion: false, highContrast: false },
   stats: {
     wins: 0, enemiesDefeated: 0, defendersDeployed: 0, nectarCollected: 0,
     wavesCleared: 0, perfectVictories: 0, defendersLost: 0, bossesDefeated: 0,

@@ -595,3 +595,75 @@ footer {
   text-align: left;
 }
 #debug button:hover { background: #3a3a4a; }
+
+/* --------------------------------------------------------------------
+   High contrast (Settings → High contrast). Strengthens borders and text
+   against the illustrated backgrounds without changing layout or removing
+   any information — nothing here is the only way to tell two states apart,
+   this just makes the existing cues easier to read.
+   -------------------------------------------------------------------- */
+:root[data-contrast="high"] {
+  --hc-border: rgba(255, 255, 255, .92);
+  --hc-text: #ffffff;
+}
+
+:root[data-contrast="high"] .panel::after {
+  background: rgba(4, 14, 9, .74);
+  backdrop-filter: blur(2px);
+}
+
+:root[data-contrast="high"] .eyebrow,
+:root[data-contrast="high"] h1,
+:root[data-contrast="high"] h2,
+:root[data-contrast="high"] .tagline,
+:root[data-contrast="high"] .settings-stats,
+:root[data-contrast="high"] .setting-row,
+:root[data-contrast="high"] #loadout-copy,
+:root[data-contrast="high"] .map-copy {
+  color: var(--hc-text);
+  text-shadow: 0 2px 0 #000, 0 0 10px rgba(0, 0, 0, .8);
+}
+
+:root[data-contrast="high"] button,
+:root[data-contrast="high"] .world,
+:root[data-contrast="high"] .card,
+:root[data-contrast="high"] .seed,
+:root[data-contrast="high"] .power,
+:root[data-contrast="high"] .level-node,
+:root[data-contrast="high"] #sun,
+:root[data-contrast="high"] #seedbar,
+:root[data-contrast="high"] #powerbar,
+:root[data-contrast="high"] #boss-bar .boss-hp,
+:root[data-contrast="high"] #wind-badge,
+:root[data-contrast="high"] .achieve-card {
+  border-width: 3px;
+  border-color: var(--hc-border) !important;
+}
+
+:root[data-contrast="high"] .card b,
+:root[data-contrast="high"] .card small,
+:root[data-contrast="high"] .seed small,
+:root[data-contrast="high"] .achieve-card b,
+:root[data-contrast="high"] .achieve-card small,
+:root[data-contrast="high"] .world b,
+:root[data-contrast="high"] .world small {
+  color: var(--hc-text);
+}
+
+:root[data-contrast="high"] .card.selected,
+:root[data-contrast="high"] .seed.sel {
+  outline: 3px solid #fff700;
+  box-shadow: 0 0 0 2px #000, 0 0 16px #fff70099;
+}
+
+/* An unaffordable/spent control needs to read as "off", not just "quieter". */
+:root[data-contrast="high"] .seed.broke,
+:root[data-contrast="high"] .power.spent {
+  filter: grayscale(1) brightness(.5);
+  border-style: dashed;
+}
+
+:root[data-contrast="high"] .achieve-card.locked {
+  opacity: .7;
+  filter: grayscale(1);
+}

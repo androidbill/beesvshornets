@@ -117,6 +117,13 @@ function syncVolumeSliders() {
   for (const el of document.querySelectorAll('[id$="-sfx"]')) el.value = getVolume('sfx');
   const motion = $('#opt-motion');
   if (motion) motion.checked = SaveStore.settings().reducedMotion;
+  const contrast = $('#opt-contrast');
+  if (contrast) contrast.checked = SaveStore.settings().highContrast;
+}
+
+/** Applies immediately so toggling it doesn't need a screen change to see it. */
+function applyContrast(on) {
+  document.documentElement.dataset.contrast = on ? 'high' : 'normal';
 }
 
 function wireVolumeControls() {
@@ -139,6 +146,10 @@ function wireVolumeControls() {
   $('#opt-motion').addEventListener('change', (e) => {
     SaveStore.setSetting('reducedMotion', e.target.checked);
     if (world) world.reducedMotion = e.target.checked;
+  });
+  $('#opt-contrast').addEventListener('change', (e) => {
+    SaveStore.setSetting('highContrast', e.target.checked);
+    applyContrast(e.target.checked);
   });
 }
 
@@ -1023,6 +1034,7 @@ setEnabled('music', savedSettings.music);
 setEnabled('sfx', savedSettings.sfx);
 setVolume('music', savedSettings.musicVolume);
 setVolume('sfx', savedSettings.sfxVolume);
+applyContrast(savedSettings.highContrast);
 syncSoundButtons();
 wireVolumeControls();
 
